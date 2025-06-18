@@ -42,6 +42,9 @@ if (!$upload) {
             <h2 class="text-lg font-semibold mb-2">Extracted Text</h2>
             <pre class="whitespace-pre-wrap text-sm"><?php echo htmlspecialchars($ocr); ?></pre>
         </div>
+        <div class="text-center mt-4">
+            <a href="generate.php?id=<?php echo $id; ?>" class="bg-blue-600 text-white px-4 py-2 rounded">Generate Site</a>
+        </div>
         <?php else: ?>
         <p class="text-center">OCR and AI generation coming soon...</p>
         <?php endif; ?>
