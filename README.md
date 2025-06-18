@@ -1,10 +1,11 @@
 # BusinessCard2Website
 
-This repository contains a simple PHP prototype based on the PRD. The app lets users upload a business card image and stores the file in `uploads/` with a database record. A preview page shows the uploaded card. OCR and HTML generation will be added later.
+This repository contains a simple PHP prototype based on the PRD. The app lets users upload a business card image and stores the file in `uploads/` with a database record. A preview page shows the uploaded card and displays text extracted via OCR. AI-based HTML generation will be added later.
 
 ## Requirements
 - PHP 8+
 - MySQL 8
+- Tesseract OCR
 
 ## Setup
 1. Create a MySQL database and user. Import `schema.sql`.

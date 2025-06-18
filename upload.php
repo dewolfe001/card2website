@@ -24,6 +24,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $stmt->execute([$filename]);
     $uploadId = $pdo->lastInsertId();
 
+    // Run OCR on the uploaded image using Tesseract
+    $ocrText = null;
+    $cmd = 'tesseract ' . escapeshellarg($targetFile) . ' stdout 2>/dev/null';
+    $output = shell_exec($cmd);
+    if ($output !== null) {
+        $ocrText = trim($output);
+    }
+
+    // Store OCR result as JSON
+    if ($ocrText !== null && $ocrText !== '') {
+        $stmt = $pdo->prepare('INSERT INTO ocr_data (upload_id, json_data, created_at) VALUES (?, ?, NOW())');
+        $stmt->execute([$uploadId, json_encode([ 'raw_text' => $ocrText ])]);
+    }
+
     header('Location: preview.php?id=' . $uploadId);
     exit;
 }
