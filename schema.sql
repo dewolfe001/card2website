@@ -28,3 +28,13 @@ CREATE TABLE IF NOT EXISTS ocr_edits (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (upload_id) REFERENCES uploads(id)
 );
+
+CREATE TABLE IF NOT EXISTS naics_classifications (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    upload_id INT NOT NULL,
+    naics_code VARCHAR(10),
+    title VARCHAR(255),
+    description TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (upload_id) REFERENCES uploads(id)
+);
