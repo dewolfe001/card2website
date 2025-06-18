@@ -1,0 +1,22 @@
+CREATE TABLE IF NOT EXISTS uploads (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    filename VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS ocr_data (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    upload_id INT NOT NULL,
+    json_data JSON,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (upload_id) REFERENCES uploads(id)
+);
+
+CREATE TABLE IF NOT EXISTS generated_sites (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    upload_id INT NOT NULL,
+    html_code MEDIUMTEXT,
+    public_url VARCHAR(255),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (upload_id) REFERENCES uploads(id)
+);
