@@ -6,6 +6,19 @@ $stmt = $pdo->prepare('SELECT filename FROM uploads WHERE id = ?');
 $stmt->execute([$id]);
 $upload = $stmt->fetch();
 
+$ocr = null;
+if ($upload) {
+    $stmt = $pdo->prepare('SELECT json_data FROM ocr_data WHERE upload_id = ? ORDER BY id DESC LIMIT 1');
+    $stmt->execute([$id]);
+    $ocrRow = $stmt->fetch();
+    if ($ocrRow && isset($ocrRow['json_data'])) {
+        $data = json_decode($ocrRow['json_data'], true);
+        if ($data && isset($data['raw_text'])) {
+            $ocr = $data['raw_text'];
+        }
+    }
+}
+
 if (!$upload) {
     die('Upload not found');
 }
@@ -24,7 +37,14 @@ if (!$upload) {
         <div class="text-center mb-6">
             <img src="uploads/<?php echo htmlspecialchars($upload['filename']); ?>" class="mx-auto max-w-xs" alt="Uploaded Card">
         </div>
+        <?php if ($ocr): ?>
+        <div class="bg-white p-4 rounded shadow mb-4">
+            <h2 class="text-lg font-semibold mb-2">Extracted Text</h2>
+            <pre class="whitespace-pre-wrap text-sm"><?php echo htmlspecialchars($ocr); ?></pre>
+        </div>
+        <?php else: ?>
         <p class="text-center">OCR and AI generation coming soon...</p>
+        <?php endif; ?>
         <div class="text-center mt-6">
             <a href="index.php" class="text-blue-600">Upload another card</a>
         </div>
