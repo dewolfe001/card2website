@@ -31,3 +31,5 @@ This repository contains a simple PHP prototype based on the PRD. The app lets u
 Users can review the extracted text on the preview page, make corrections, and generate the site from their edited version. The edits are stored in the new `ocr_edits` table.
 
 This is an early scaffold; more features will be implemented following the PRD.
+The prototype now includes experimental domain suggestions and Namecheap integration for registration.
+

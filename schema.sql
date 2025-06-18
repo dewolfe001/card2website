@@ -38,3 +38,21 @@ CREATE TABLE IF NOT EXISTS naics_classifications (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (upload_id) REFERENCES uploads(id)
 );
+
+CREATE TABLE IF NOT EXISTS domain_suggestions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    upload_id INT NOT NULL,
+    suggestion VARCHAR(255) NOT NULL,
+    availability TINYINT(1) DEFAULT NULL,
+    checked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (upload_id) REFERENCES uploads(id)
+);
+
+CREATE TABLE IF NOT EXISTS domain_registrations (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    domain VARCHAR(255) NOT NULL,
+    registrar_id VARCHAR(255),
+    purchase_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    user_id INT DEFAULT NULL
+);
+

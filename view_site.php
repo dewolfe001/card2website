@@ -26,6 +26,7 @@ $html = $site['html_code'];
         </div>
         <div class="text-center mt-4">
             <a href="download.php?id=<?= $id ?>" class="bg-green-600 text-white px-4 py-2 rounded">Download HTML</a>
+            <a href="domain_search.php?id=<?= $id ?>" class="ml-4 bg-blue-600 text-white px-4 py-2 rounded">Find Domain</a>
         </div>
     </div>
 </body>
