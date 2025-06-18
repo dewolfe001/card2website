@@ -33,6 +33,10 @@ Users can review the extracted text on the preview page, make corrections, and g
 This is an early scaffold; more features will be implemented following the PRD.
 The prototype now includes experimental domain suggestions and Namecheap integration for registration.
 
+## Publishing to WHM/cPanel
+Set `WHM_HOST`, `WHM_API_TOKEN`, and `WHM_ROOT_USER` in your `.env` file for deployment.
+Use `publish_to_whm.php?upload_id=ID&domain=example.com` to create a new WHM account and upload the generated site to the account's `public_html` directory.
+
 ## Billing
 The app integrates with Stripe for recurring subscriptions. Set `STRIPE_SECRET_KEY` and
 `STRIPE_PRICE_ID` in your `.env` file. After registering and logging in, users can start a

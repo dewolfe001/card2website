@@ -42,11 +42,11 @@ if (is_array($naics)) {
     $naicsContext = '';
 }
 
-$prompt = "Create a simple responsive HTML page for this business information:\n" . $text;
+$prompt = "Create a responsive HTML page styled with Tailwind CSS for this business information:\n" . $text;
 if ($naicsContext !== '') {
     $prompt .= "\nBusiness classification: " . $naicsContext;
 }
-$prompt .= "\nReturn only the HTML.";
+$prompt .= "\nInclude meta description, alt and title attributes, and LD-JSON structured data for SEO. Return only the HTML.";
 $html = generateHtmlWithOpenAI($prompt);
 if (!$html) {
     // Fallback simple template

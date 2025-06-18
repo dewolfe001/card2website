@@ -7,6 +7,9 @@ $id = isset($_GET['upload_id']) ? (int)$_GET['upload_id'] : 0;
 if ($domain === '') {
     die('Domain not specified');
 }
+if (!preg_match('/^[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/', $domain)) {
+    die('Invalid domain');
+}
 
 $result = registerDomain($domain);
 if ($result) {
