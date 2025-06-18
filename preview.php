@@ -13,8 +13,12 @@ if ($upload) {
     $ocrRow = $stmt->fetch();
     if ($ocrRow && isset($ocrRow['json_data'])) {
         $data = json_decode($ocrRow['json_data'], true);
-        if ($data && isset($data['raw_text'])) {
-            $ocr = $data['raw_text'];
+        if ($data) {
+            if (!empty($data['openai_text'])) {
+                $ocr = $data['openai_text'];
+            } elseif (!empty($data['raw_text'])) {
+                $ocr = $data['raw_text'];
+            }
         }
     }
 }
@@ -38,13 +42,14 @@ if (!$upload) {
             <img src="uploads/<?php echo htmlspecialchars($upload['filename']); ?>" class="mx-auto max-w-xs" alt="Uploaded Card">
         </div>
         <?php if ($ocr): ?>
-        <div class="bg-white p-4 rounded shadow mb-4">
-            <h2 class="text-lg font-semibold mb-2">Extracted Text</h2>
-            <pre class="whitespace-pre-wrap text-sm"><?php echo htmlspecialchars($ocr); ?></pre>
-        </div>
-        <div class="text-center mt-4">
-            <a href="generate.php?id=<?php echo $id; ?>" class="bg-blue-600 text-white px-4 py-2 rounded">Generate Site</a>
-        </div>
+        <form action="generate.php" method="post" class="bg-white p-4 rounded shadow mb-4">
+            <h2 class="text-lg font-semibold mb-2">Review &amp; Edit Text</h2>
+            <input type="hidden" name="id" value="<?php echo $id; ?>" />
+            <textarea name="edited_text" rows="10" class="w-full border p-2 text-sm"><?php echo htmlspecialchars($ocr); ?></textarea>
+            <div class="text-center mt-4">
+                <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded">Generate Site</button>
+            </div>
+        </form>
         <?php else: ?>
         <p class="text-center">OCR and AI generation coming soon...</p>
         <?php endif; ?>

@@ -20,3 +20,11 @@ CREATE TABLE IF NOT EXISTS generated_sites (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (upload_id) REFERENCES uploads(id)
 );
+
+CREATE TABLE IF NOT EXISTS ocr_edits (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    upload_id INT NOT NULL,
+    edited_text TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (upload_id) REFERENCES uploads(id)
+);

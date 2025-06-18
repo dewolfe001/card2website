@@ -2,7 +2,8 @@
 require 'config.php';
 require_once 'openai_helper.php';
 
-$id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+$id = isset($_GET['id']) ? (int)$_GET['id'] : (isset($_POST['id']) ? (int)$_POST['id'] : 0);
+$editedText = $_POST['edited_text'] ?? null;
 
 $stmt = $pdo->prepare('SELECT filename FROM uploads WHERE id = ?');
 $stmt->execute([$id]);
@@ -18,7 +19,15 @@ if (!$row || !isset($row['json_data'])) {
     die('No OCR data available');
 }
 $data = json_decode($row['json_data'], true);
-$text = $data['openai_text'] ?? $data['raw_text'] ?? '';
+
+$text = '';
+if ($editedText !== null && trim($editedText) !== '') {
+    $text = trim($editedText);
+    $stmt = $pdo->prepare('INSERT INTO ocr_edits (upload_id, edited_text, created_at) VALUES (?, ?, NOW())');
+    $stmt->execute([$id, $text]);
+} else {
+    $text = $data['openai_text'] ?? $data['raw_text'] ?? '';
+}
 if ($text === '') {
     die('No text found');
 }
