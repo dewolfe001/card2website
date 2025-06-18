@@ -1,6 +1,6 @@
 # BusinessCard2Website
 
-This repository contains a simple PHP prototype based on the PRD. The app lets users upload a business card image and stores the file in `uploads/` with a database record. A preview page shows the uploaded card and displays text extracted via OCR. AI-based HTML generation will be added later.
+This repository contains a simple PHP prototype based on the PRD. The app lets users upload a business card image and stores the file in `uploads/` with a database record. A preview page shows the uploaded card and displays text extracted via OCR. A basic HTML generator can turn that text into a one-page website which users can view and download.
 
 ## Requirements
 - PHP 8+
@@ -20,8 +20,11 @@ This repository contains a simple PHP prototype based on the PRD. The app lets u
 ## Folder Structure
 - `index.php` – landing page with upload form
 - `upload.php` – processes uploads and saves metadata
-- `preview.php` – displays uploaded card
+- `preview.php` – displays uploaded card and extracted text
+- `generate.php` – creates a simple HTML site from OCR data
+- `view_site.php` – preview of generated site with download link
+- `download.php` – download the generated HTML file
 - `uploads/` – uploaded images (ignored in Git)
-- `generated_sites/` – future HTML output (ignored in Git)
+- `generated_sites/` – generated HTML output (ignored in Git)
 
 This is an early scaffold; more features will be implemented following the PRD.
