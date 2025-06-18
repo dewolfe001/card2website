@@ -1,5 +1,6 @@
 <?php
 require 'config.php';
+require_once 'openai_helper.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!isset($_FILES['card_image']) || $_FILES['card_image']['error'] !== UPLOAD_ERR_OK) {
@@ -32,10 +33,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $ocrText = trim($output);
     }
 
+    // Optionally send the image to OpenAI for additional interpretation
+    $openaiText = sendImageToOpenAI($targetFile);
+
     // Store OCR result as JSON
-    if ($ocrText !== null && $ocrText !== '') {
+    if ($ocrText !== null || $openaiText !== null) {
+        $json = [];
+        if ($ocrText !== null && $ocrText !== '') {
+            $json['raw_text'] = $ocrText;
+        }
+        if ($openaiText !== null && $openaiText !== '') {
+            $json['openai_text'] = $openaiText;
+        }
         $stmt = $pdo->prepare('INSERT INTO ocr_data (upload_id, json_data, created_at) VALUES (?, ?, NOW())');
-        $stmt->execute([$uploadId, json_encode([ 'raw_text' => $ocrText ])]);
+        $stmt->execute([$uploadId, json_encode($json)]);
     }
 
     header('Location: preview.php?id=' . $uploadId);
