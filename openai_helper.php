@@ -50,6 +50,7 @@ function sendImageToOpenAI(string $imagePath): ?string {
 
     return trim($json['choices'][0]['message']['content']);
 }
+
 function generateHtmlWithOpenAI(string $prompt): ?string {
     $apiKey = getenv('OPENAI_API_KEY');
     if (!$apiKey) {
@@ -93,3 +94,47 @@ function generateHtmlWithOpenAI(string $prompt): ?string {
     return trim($json['choices'][0]['message']['content']);
 }
 
+function classifyNaics(string $text): ?array {
+    $apiKey = getenv('OPENAI_API_KEY');
+    if (!$apiKey) {
+        return null;
+    }
+    $prompt = "Identify the best matching 6-digit NAICS code for this business information and respond in JSON with keys code, title, description only.";
+    $postData = [
+        'model' => 'gpt-4o',
+        'messages' => [
+            ['role' => 'system', 'content' => $prompt],
+            ['role' => 'user', 'content' => $text]
+        ],
+        'max_tokens' => 200
+    ];
+    $ch = curl_init('https://api.openai.com/v1/chat/completions');
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        'Authorization: Bearer ' . $apiKey,
+        'Content-Type: application/json'
+    ]);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($postData));
+    $response = curl_exec($ch);
+    if ($response === false) {
+        curl_close($ch);
+        return null;
+    }
+    $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    if ($status !== 200) {
+        return null;
+    }
+    $json = json_decode($response, true);
+    if (!$json || !isset($json['choices'][0]['message']['content'])) {
+        return null;
+    }
+    $content = trim($json['choices'][0]['message']['content']);
+    $data = json_decode($content, true);
+    if (!is_array($data) || !isset($data['code'])) {
+        return null;
+    }
+    return $data;
+}
+?>

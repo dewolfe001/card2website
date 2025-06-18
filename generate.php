@@ -32,7 +32,21 @@ if ($text === '') {
     die('No text found');
 }
 
-$prompt = "Create a simple responsive HTML page for this business information:\n" . $text . "\nReturn only the HTML.";
+// Determine NAICS classification using OpenAI
+$naics = classifyNaics($text);
+if (is_array($naics)) {
+    $stmt = $pdo->prepare('INSERT INTO naics_classifications (upload_id, naics_code, title, description, created_at) VALUES (?, ?, ?, ?, NOW())');
+    $stmt->execute([$id, $naics['code'] ?? null, $naics['title'] ?? null, $naics['description'] ?? null]);
+    $naicsContext = $naics['title'] . ' - ' . $naics['description'];
+} else {
+    $naicsContext = '';
+}
+
+$prompt = "Create a simple responsive HTML page for this business information:\n" . $text;
+if ($naicsContext !== '') {
+    $prompt .= "\nBusiness classification: " . $naicsContext;
+}
+$prompt .= "\nReturn only the HTML.";
 $html = generateHtmlWithOpenAI($prompt);
 if (!$html) {
     // Fallback simple template

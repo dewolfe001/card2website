@@ -1,6 +1,6 @@
 # BusinessCard2Website
 
-This repository contains a simple PHP prototype based on the PRD. The app lets users upload a business card image and stores the file in `uploads/` with a database record. A preview page shows the uploaded card and displays text extracted via OCR. A basic HTML generator can turn that text into a one-page website which users can view and download.
+This repository contains a simple PHP prototype based on the PRD. The app lets users upload a business card image and stores the file in `uploads/` with a database record. A preview page shows the uploaded card and displays text extracted via OCR. A basic HTML generator can turn that text into a one-page website which users can view and download. The generator now also infers a NAICS classification via OpenAI to help shape the design.
 
 ## Requirements
 - PHP 8+
@@ -26,6 +26,7 @@ This repository contains a simple PHP prototype based on the PRD. The app lets u
 - `download.php` – download the generated HTML file
 - `uploads/` – uploaded images (ignored in Git)
 - `generated_sites/` – generated HTML output (ignored in Git)
+- `naics_classifications` – table storing NAICS code results
 
 Users can review the extracted text on the preview page, make corrections, and generate the site from their edited version. The edits are stored in the new `ocr_edits` table.
 
