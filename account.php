@@ -20,6 +20,9 @@ $sub = $stmt->fetch();
 <div class="max-w-xl mx-auto bg-white p-6 rounded shadow">
 <h2 class="text-xl mb-4">Account</h2>
 <p><a class="text-blue-600" href="logout.php">Logout</a></p>
+<?php if (current_user_is_admin()): ?>
+<p class="mt-2"><a class="text-blue-600" href="admin_dashboard.php">Admin Dashboard</a></p>
+<?php endif; ?>
 <?php if ($sub): ?>
 <p class="mt-4">Subscription status: <strong><?= htmlspecialchars($sub['status']) ?></strong></p>
 <?php if ($sub['status'] === 'active'): ?>
