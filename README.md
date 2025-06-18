@@ -33,3 +33,9 @@ Users can review the extracted text on the preview page, make corrections, and g
 This is an early scaffold; more features will be implemented following the PRD.
 The prototype now includes experimental domain suggestions and Namecheap integration for registration.
 
+## Billing
+The app integrates with Stripe for recurring subscriptions. Set `STRIPE_SECRET_KEY` and
+`STRIPE_PRICE_ID` in your `.env` file. After registering and logging in, users can start a
+subscription and manage billing through the Stripe customer portal. Webhook events update the
+`billing_subscriptions` table.
+
