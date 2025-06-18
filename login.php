@@ -5,11 +5,12 @@ require 'auth.php';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email = trim($_POST['email'] ?? '');
     $password = $_POST['password'] ?? '';
-    $stmt = $pdo->prepare('SELECT id, password_hash FROM users WHERE email = ?');
+    $stmt = $pdo->prepare('SELECT id, password_hash, is_admin FROM users WHERE email = ?');
     $stmt->execute([$email]);
     $user = $stmt->fetch();
     if ($user && password_verify($password, $user['password_hash'])) {
         $_SESSION['user_id'] = $user['id'];
+        $_SESSION['is_admin'] = $user['is_admin'];
         header('Location: account.php');
         exit;
     } else {

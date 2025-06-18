@@ -43,3 +43,8 @@ The app integrates with Stripe for recurring subscriptions. Set `STRIPE_SECRET_K
 subscription and manage billing through the Stripe customer portal. Webhook events update the
 `billing_subscriptions` table.
 
+## Admin Dashboard
+Users marked as admins can access `admin_dashboard.php` from their account page. The dashboard
+lists all registered users along with their latest subscription status and allows administrators
+to delete accounts.
+
