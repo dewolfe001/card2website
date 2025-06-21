@@ -21,8 +21,8 @@
    * Client-side validation (max size, file type)  
    * Progress indicator  
    * PHP handler to move image to /uploads/ and save metadata in MySQL  
-3. **OCR Extraction System**  
-   * Server-side PHP script calls Tesseract or Google Cloud Vision API  
+3. **OCR Extraction System**
+   * Server-side PHP script sends the image to OpenAI's vision API
    * Parses results into JSON with fields:  
      * name, title, company, phone, email, website, address, tagline, etc.  
    * Provide a confirmation interface where users can review and edit extracted fields before proceeding  
@@ -69,7 +69,7 @@
 
 * Frontend: HTML5, TailwindCSS, Alpine.js  
 * Backend: PHP 8+, MySQL 8  
-* OCR: Tesseract (PHP wrapper) or Google Cloud Vision API  
+* OCR: OpenAI vision API
 * AI: OpenAI GPT-4 via PHP SDK or API integration  
 * Hosting: Apache/Nginx on Linux, HTTPS with Let's Encrypt
 
@@ -134,7 +134,7 @@
 
 **Features:**
 
-* PHP-based Tesseract or Google Vision OCR processing
+* PHP-based OpenAI vision OCR processing
 
 * Normalize data: name, title, company, phone, email, website, address
 

@@ -5,12 +5,11 @@ This repository contains a simple PHP prototype based on the PRD. The app lets u
 ## Requirements
 - PHP 8+
 - MySQL 8
-- Tesseract OCR
-- (Optional) OpenAI API key for enhanced OCR
+- OpenAI API key (for OCR and site generation)
 
 ## Setup
 1. Create a MySQL database and user. Import `schema.sql`.
-2. Copy `.env.example` to `.env` and set your DB credentials or configure environment variables `DB_HOST`, `DB_NAME`, `DB_USER`, `DB_PASS`, and `OPENAI_API_KEY` if you want to use OpenAI vision.
+2. Copy `.env.example` to `.env` and set your DB credentials along with an `OPENAI_API_KEY`.
 3. Serve the PHP files with Apache or PHP's built-in server:
    ```bash
    php -S localhost:8000
