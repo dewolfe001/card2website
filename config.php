@@ -34,6 +34,12 @@ function loadEnvFile($envFile = '.env') {
             if (!defined($key)) {
                 define($key, $value);
             }
+            // Set environment variable for functions using getenv()
+            if (getenv($key) === false) {
+                putenv("$key=$value");
+                $_ENV[$key] = $value;
+                $_SERVER[$key] = $value;
+            }
         }
     }
     

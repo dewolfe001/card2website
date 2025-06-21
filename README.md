@@ -10,6 +10,8 @@ This repository contains a simple PHP prototype based on the PRD. The app lets u
 ## Setup
 1. Create a MySQL database and user. Import `schema.sql`.
 2. Copy `.env.example` to `.env` and set your DB credentials along with an `OPENAI_API_KEY`.
+   The `config.php` loader will export each variable so it can also be read
+   with `getenv()`.
 3. Serve the PHP files with Apache or PHP's built-in server:
    ```bash
    php -S localhost:8000
