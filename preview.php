@@ -6,7 +6,7 @@ $stmt = $pdo->prepare('SELECT filename FROM uploads WHERE id = ?');
 $stmt->execute([$id]);
 $upload = $stmt->fetch();
 
-$ocr = null;
+$analysisJson = null;
 if ($upload) {
     $stmt = $pdo->prepare('SELECT json_data FROM ocr_data WHERE upload_id = ? ORDER BY id DESC LIMIT 1');
     $stmt->execute([$id]);
@@ -14,10 +14,12 @@ if ($upload) {
     if ($ocrRow && isset($ocrRow['json_data'])) {
         $data = json_decode($ocrRow['json_data'], true);
         if ($data) {
-            if (!empty($data['openai_text'])) {
-                $ocr = $data['openai_text'];
+            if (isset($data['business_info']) || isset($data['design_elements'])) {
+                $analysisJson = json_encode($data, JSON_PRETTY_PRINT);
+            } elseif (!empty($data['openai_text'])) {
+                $analysisJson = $data['openai_text'];
             } elseif (!empty($data['raw_text'])) {
-                $ocr = $data['raw_text'];
+                $analysisJson = $data['raw_text'];
             }
         }
     }
@@ -41,17 +43,19 @@ if (!$upload) {
         <div class="text-center mb-6">
             <img src="uploads/<?php echo htmlspecialchars($upload['filename']); ?>" class="mx-auto max-w-xs" alt="Uploaded Card">
         </div>
-        <?php if ($ocr): ?>
+        <?php if ($analysisJson): ?>
         <form action="generate.php" method="post" class="bg-white p-4 rounded shadow mb-4">
-            <h2 class="text-lg font-semibold mb-2">Review &amp; Edit Text</h2>
+            <h2 class="text-lg font-semibold mb-2">Review &amp; Edit Data</h2>
             <input type="hidden" name="id" value="<?php echo $id; ?>" />
-            <textarea name="edited_text" rows="10" class="w-full border p-2 text-sm"><?php echo htmlspecialchars($ocr); ?></textarea>
+            <textarea name="edited_data" rows="12" class="w-full border p-2 text-sm"><?php echo htmlspecialchars($analysisJson); ?></textarea>
+            <label class="block mt-4 mb-2 font-semibold">Additional Details (optional)</label>
+            <textarea name="additional_details" rows="4" class="w-full border p-2 text-sm"></textarea>
             <div class="text-center mt-4">
                 <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded">Generate Site</button>
             </div>
         </form>
         <?php else: ?>
-        <p class="text-center">OCR and AI generation coming soon...</p>
+        <p class="text-center">Analysis not available. Please try again later.</p>
         <?php endif; ?>
         <div class="text-center mt-6">
             <a href="index.php" class="text-blue-600">Upload another card</a>

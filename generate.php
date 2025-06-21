@@ -3,7 +3,8 @@ require 'config.php';
 require_once 'openai_helper.php';
 
 $id = isset($_GET['id']) ? (int)$_GET['id'] : (isset($_POST['id']) ? (int)$_POST['id'] : 0);
-$editedText = $_POST['edited_text'] ?? null;
+$editedData = $_POST['edited_data'] ?? null;
+$additional = $_POST['additional_details'] ?? '';
 
 $stmt = $pdo->prepare('SELECT filename FROM uploads WHERE id = ?');
 $stmt->execute([$id]);
@@ -20,37 +21,24 @@ if (!$row || !isset($row['json_data'])) {
 }
 $data = json_decode($row['json_data'], true);
 
-$text = '';
-if ($editedText !== null && trim($editedText) !== '') {
-    $text = trim($editedText);
+$jsonString = '';
+if ($editedData !== null && trim($editedData) !== '') {
+    $jsonString = trim($editedData);
     $stmt = $pdo->prepare('INSERT INTO ocr_edits (upload_id, edited_text, created_at) VALUES (?, ?, NOW())');
-    $stmt->execute([$id, $text]);
+    $stmt->execute([$id, $jsonString]);
 } else {
-    $text = $data['openai_text'] ?? $data['raw_text'] ?? '';
-}
-if ($text === '') {
-    die('No text found');
+    $jsonString = $row['json_data'];
 }
 
-// Determine NAICS classification using OpenAI
-$naics = classifyNaics($text);
-if (is_array($naics)) {
-    $stmt = $pdo->prepare('INSERT INTO naics_classifications (upload_id, naics_code, title, description, created_at) VALUES (?, ?, ?, ?, NOW())');
-    $stmt->execute([$id, $naics['code'] ?? null, $naics['title'] ?? null, $naics['description'] ?? null]);
-    $naicsContext = $naics['title'] . ' - ' . $naics['description'];
-} else {
-    $naicsContext = '';
+$businessData = json_decode($jsonString, true);
+if (!$businessData) {
+    die('Invalid business data');
 }
 
-$prompt = "Create a responsive HTML page styled with Tailwind CSS for this business information:\n" . $text;
-if ($naicsContext !== '') {
-    $prompt .= "\nBusiness classification: " . $naicsContext;
-}
-$prompt .= "\nInclude meta description, alt and title attributes, and LD-JSON structured data for SEO. Return only the HTML.";
-$html = generateHtmlWithOpenAI($prompt);
+$result = generateWebsiteFromData($businessData, $additional);
+$html = $result['html_code'] ?? null;
 if (!$html) {
-    // Fallback simple template
-    $html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>Generated Site</title><style>body{font-family:sans-serif;padding:2rem;}</style></head><body><pre>" . htmlspecialchars($text) . "</pre></body></html>";
+    $html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>Generated Site</title><style>body{font-family:sans-serif;padding:2rem;}</style></head><body><pre>" . htmlspecialchars($jsonString) . "</pre></body></html>";
 }
 
 $dir = __DIR__ . '/generated_sites/';
