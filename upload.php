@@ -25,13 +25,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $stmt->execute([$filename]);
     $uploadId = $pdo->lastInsertId();
 
-    // Run OCR on the uploaded image using Tesseract for fallback
-    $ocrText = null;
-    $cmd = 'tesseract ' . escapeshellarg($targetFile) . ' stdout 2>/dev/null';
-    $output = shell_exec($cmd);
-    if ($output !== null) {
-        $ocrText = trim($output);
-    }
+    // Extract text using OpenAI's vision capabilities
+    $ocrText = sendImageToOpenAI($targetFile);
 
     // Analyze the business card with OpenAI to get structured data
     $analysis = analyzeBusinessCardStructured($targetFile);
@@ -41,7 +36,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $json = $analysis;
     }
     if ($ocrText !== null && $ocrText !== '') {
-        $json['raw_text'] = $ocrText;
+        $json['openai_text'] = $ocrText;
     }
 
     if (!empty($json)) {
