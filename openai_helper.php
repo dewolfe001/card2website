@@ -1,5 +1,5 @@
 <?php
-function sendImageToOpenAI(string $imagePath): ?string {
+function sendImageToOpenAI(string $imagePath, ?string &$error = null): ?string {
     $apiKey = getenv('OPENAI_API_KEY');
     if (!$apiKey || !file_exists($imagePath)) {
         return null;
@@ -11,7 +11,7 @@ function sendImageToOpenAI(string $imagePath): ?string {
     }
 
     $postData = [
-        'model' => 'gpt-4-vision-preview',
+        'model' => 'gpt-4o',
         'messages' => [[
             'role' => 'user',
             'content' => [
@@ -33,15 +33,18 @@ function sendImageToOpenAI(string $imagePath): ?string {
 
     $response = curl_exec($ch);
     if ($response === false) {
+        $error = curl_error($ch);
         curl_close($ch);
         return null;
     }
 
     $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
     if ($status !== 200) {
+        $error = $response;
+        curl_close($ch);
         return null;
     }
+    curl_close($ch);
 
     $json = json_decode($response, true);
     if (!$json || !isset($json['choices'][0]['message']['content'])) {
@@ -51,7 +54,7 @@ function sendImageToOpenAI(string $imagePath): ?string {
     return trim($json['choices'][0]['message']['content']);
 }
 
-function analyzeBusinessCardStructured(string $imagePath): ?array {
+function analyzeBusinessCardStructured(string $imagePath, ?string &$error = null): ?array {
     $apiKey = getenv('OPENAI_API_KEY');
     if (!$apiKey || !file_exists($imagePath)) {
         return null;
@@ -89,15 +92,18 @@ function analyzeBusinessCardStructured(string $imagePath): ?array {
 
     $response = curl_exec($ch);
     if ($response === false) {
+        $error = curl_error($ch);
         curl_close($ch);
         return null;
     }
 
     $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
     if ($status !== 200) {
+        $error = $response;
+        curl_close($ch);
         return null;
     }
+    curl_close($ch);
 
     $json = json_decode($response, true);
     if (!$json || !isset($json['choices'][0]['message']['content'])) {
