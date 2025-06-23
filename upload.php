@@ -26,10 +26,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $uploadId = $pdo->lastInsertId();
 
     // Extract text using OpenAI's vision capabilities
-    $ocrText = sendImageToOpenAI($targetFile);
+    $ocrError = null;
+    $ocrText = sendImageToOpenAI($targetFile, $ocrError);
 
     // Analyze the business card with OpenAI to get structured data
-    $analysis = analyzeBusinessCardStructured($targetFile);
+    $analysisError = null;
+    $analysis = analyzeBusinessCardStructured($targetFile, $analysisError);
 
     $json = [];
     if ($analysis) {
@@ -39,12 +41,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $json['openai_text'] = $ocrText;
     }
 
+    if (!$analysis && !$ocrText) {
+        $errorMsg = 'OpenAI errors: ' . ($ocrError ?? 'none') . ' | ' . ($analysisError ?? 'none');
+        error_log($errorMsg);
+    }
+
     if (!empty($json)) {
         $stmt = $pdo->prepare('INSERT INTO ocr_data (upload_id, json_data, created_at) VALUES (?, ?, NOW())');
         $stmt->execute([$uploadId, json_encode($json)]);
     }
 
-    header('Location: preview.php?id=' . $uploadId);
+    $hasError = !$analysis && !$ocrText;
+    $redirect = 'preview.php?id=' . $uploadId;
+    if ($hasError) {
+        $redirect .= '&error=1';
+    }
+    header('Location: ' . $redirect);
     exit;
 }
 ?>

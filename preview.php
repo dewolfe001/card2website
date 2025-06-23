@@ -56,6 +56,9 @@ if (!$upload) {
         </form>
         <?php else: ?>
         <p class="text-center">Analysis not available. Please try again later.</p>
+        <?php if (isset($_GET['error'])): ?>
+        <p class="text-center text-red-600 mt-2">There was an error communicating with OpenAI. Check your API key and server logs.</p>
+        <?php endif; ?>
         <?php endif; ?>
         <div class="text-center mt-6">
             <a href="index.php" class="text-blue-600">Upload another card</a>
