@@ -1,17 +1,19 @@
 <?php
-function sendImageToOpenAI(string $imagePath, ?string &$error = null): ?string {
+function sendImageToOpenAI(string $imagePath) {
     $apiKey = getenv('OPENAI_API_KEY');
     if (!$apiKey || !file_exists($imagePath)) {
+        error_log("LINE 5 - null");
         return null;
     }
 
     $imageData = base64_encode(file_get_contents($imagePath));
     if ($imageData === false) {
+        error_log("LINE 11 - null");
         return null;
     }
 
     $postData = [
-        'model' => 'gpt-4o',
+        'model' => 'gpt-4-vision-preview',
         'messages' => [[
             'role' => 'user',
             'content' => [
@@ -33,35 +35,37 @@ function sendImageToOpenAI(string $imagePath, ?string &$error = null): ?string {
 
     $response = curl_exec($ch);
     if ($response === false) {
-        $error = curl_error($ch);
         curl_close($ch);
+        error_log("LINE 39 - null");        
         return null;
     }
 
     $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
     if ($status !== 200) {
-        $error = $response;
-        curl_close($ch);
+        error_log("LINE 46 - null - $status");        
         return null;
     }
-    curl_close($ch);
 
     $json = json_decode($response, true);
     if (!$json || !isset($json['choices'][0]['message']['content'])) {
+        error_log("LINE 52 - null");
         return null;
     }
 
     return trim($json['choices'][0]['message']['content']);
 }
 
-function analyzeBusinessCardStructured(string $imagePath, ?string &$error = null): ?array {
+function analyzeBusinessCardStructured(string $imagePath): ?array {
     $apiKey = getenv('OPENAI_API_KEY');
     if (!$apiKey || !file_exists($imagePath)) {
+        error_log("LINE 62 - null");
         return null;
     }
 
     $imageData = base64_encode(file_get_contents($imagePath));
     if ($imageData === false) {
+        error_log("LINE 68 - null");
         return null;
     }
 
@@ -92,18 +96,15 @@ function analyzeBusinessCardStructured(string $imagePath, ?string &$error = null
 
     $response = curl_exec($ch);
     if ($response === false) {
-        $error = curl_error($ch);
         curl_close($ch);
         return null;
     }
 
     $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
     if ($status !== 200) {
-        $error = $response;
-        curl_close($ch);
         return null;
     }
-    curl_close($ch);
 
     $json = json_decode($response, true);
     if (!$json || !isset($json['choices'][0]['message']['content'])) {
@@ -115,7 +116,7 @@ function analyzeBusinessCardStructured(string $imagePath, ?string &$error = null
     return is_array($data) ? $data : null;
 }
 
-function generateHtmlWithOpenAI(string $prompt): ?string {
+function generateHtmlWithOpenAI(string $prompt) {
     $apiKey = getenv('OPENAI_API_KEY');
     if (!$apiKey) {
         return null;
