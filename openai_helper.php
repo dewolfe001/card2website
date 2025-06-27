@@ -1,60 +1,154 @@
 <?php
+
 function sendImageToOpenAI(string $imagePath) {
     $apiKey = getenv('OPENAI_API_KEY');
     if (!$apiKey || !file_exists($imagePath)) {
-        error_log("LINE 5 - null");
         return null;
     }
-
+    
     $imageData = base64_encode(file_get_contents($imagePath));
     if ($imageData === false) {
-        error_log("LINE 11 - null");
         return null;
     }
-
-    $postData = [
-        'model' => 'gpt-4-vision-preview',
-        'messages' => [[
-            'role' => 'user',
-            'content' => [
-                ['type' => 'text', 'text' => 'Extract the text from this business card and return it as plain text.'],
-                ['type' => 'image_url', 'image_url' => ['url' => 'data:image/jpeg;base64,' . $imageData]]
+    
+    // Replace mime_content_type() with finfo_file()
+    $mimeType = null;
+    if (function_exists('finfo_file')) {
+        $finfo = finfo_open(FILEINFO_MIME_TYPE);
+        $mimeType = finfo_file($finfo, $imagePath);
+        finfo_close($finfo);
+    }
+    
+    // Fallback if finfo is not available
+    if (!$mimeType) {
+        $imageInfo = getimagesize($imagePath);
+        $mimeType = $imageInfo ? $imageInfo['mime'] : 'image/jpeg'; // default fallback
+    }
+    
+    // Rest of your OpenAI API call
+    $curl = curl_init();
+    curl_setopt_array($curl, [
+        CURLOPT_URL => "https://api.openai.com/v1/chat/completions",
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_POST => true,
+        CURLOPT_HTTPHEADER => [
+            "Authorization: Bearer " . $apiKey,
+            "Content-Type: application/json"
+        ],
+        CURLOPT_POSTFIELDS => json_encode([
+            "model" => "gpt-4o",
+            "messages" => [
+                [
+                    "role" => "user",
+                    "content" => [
+                        [
+                            "type" => "text",
+                            "text" => "Extract the business card information from this image."
+                        ],
+                        [
+                            "type" => "image_url",
+                            "image_url" => [
+                                "url" => "data:" . $mimeType . ";base64," . $imageData
+                            ]
+                        ]
+                    ]
+                ]
             ]
-        ]],
-        'max_tokens' => 500
-    ];
-
-    $ch = curl_init('https://api.openai.com/v1/chat/completions');
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        'Authorization: Bearer ' . $apiKey,
-        'Content-Type: application/json'
+        ])
     ]);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($postData));
-
-    $response = curl_exec($ch);
-    if ($response === false) {
-        curl_close($ch);
-        error_log("LINE 39 - null");        
-        return null;
-    }
-
-    $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
-    if ($status !== 200) {
-        error_log("LINE 46 - null - $status");        
-        return null;
-    }
-
-    $json = json_decode($response, true);
-    if (!$json || !isset($json['choices'][0]['message']['content'])) {
-        error_log("LINE 52 - null");
-        return null;
-    }
-
-    return trim($json['choices'][0]['message']['content']);
+    
+    $response = curl_exec($curl);
+    curl_close($curl);
+    
+    return $response;
 }
+/**
+ * Convert PDF to image using Imagick
+ * Returns image data as string or null on failure
+ */
+function convertPdfToImage(string $pdfPath) {
+    if (!extension_loaded('imagick')) {
+        error_log("Imagick extension is required for PDF processing");
+        return null;
+    }
+
+    try {
+        $imagick = new Imagick();
+        
+        // Set resolution for better quality (adjust as needed)
+        $imagick->setResolution(300, 300);
+        
+        // Read the first page of the PDF
+        $imagick->readImage($pdfPath . '[0]');
+        
+        // Convert to JPEG format
+        $imagick->setImageFormat('jpeg');
+        $imagick->setImageCompressionQuality(90);
+        
+        // Get the image data
+        $imageData = $imagick->getImageBlob();
+        $imagick->clear();
+        
+        return $imageData;
+        
+    } catch (Exception $e) {
+        error_log("Error converting PDF to image: " . $e->getMessage());
+        return null;
+    }
+}
+
+/**
+ * Alternative PDF conversion using Ghostscript (if Imagick is not available)
+ * Requires Ghostscript to be installed on the system
+ */
+function convertPdfToImageWithGhostscript(string $pdfPath) {
+    $tempImagePath = tempnam(sys_get_temp_dir(), 'pdf_converted_') . '.jpg';
+    
+    $command = sprintf(
+        'gs -dNOPAUSE -dBATCH -dSAFER -sDEVICE=jpeg -dTextAlphaBits=4 -dGraphicsAlphaBits=4 -r300 -dFirstPage=1 -dLastPage=1 -sOutputFile=%s %s 2>&1',
+        escapeshellarg($tempImagePath),
+        escapeshellarg($pdfPath)
+    );
+    
+    $output = [];
+    $returnCode = 0;
+    exec($command, $output, $returnCode);
+    
+    if ($returnCode !== 0 || !file_exists($tempImagePath)) {
+        error_log("Ghostscript conversion failed. Command: $command, Output: " . implode("\n", $output));
+        return null;
+    }
+    
+    $imageData = file_get_contents($tempImagePath);
+    unlink($tempImagePath); // Clean up temp file
+    
+    return $imageData;
+}
+
+/**
+ * Validate file size and dimensions before processing
+ */
+function validateFile(string $filePath) {
+    $maxFileSize = 20 * 1024 * 1024; // 20MB limit (OpenAI's limit)
+    $fileSize = filesize($filePath);
+    
+    if ($fileSize > $maxFileSize) {
+        error_log("File too large: {$fileSize} bytes (max: {$maxFileSize})");
+        return false;
+    }
+    
+    return true;
+}
+
+// Usage example:
+/*
+$result = sendImageToOpenAI('/path/to/your/business-card.pdf');
+if ($result) {
+    echo "Extracted text: " . $result;
+} else {
+    echo "Failed to extract text from the file.";
+}
+*/
 
 function analyzeBusinessCardStructured(string $imagePath): ?array {
     $apiKey = getenv('OPENAI_API_KEY');
