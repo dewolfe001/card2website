@@ -37,16 +37,30 @@ if (!$upload) {
 }
 
 function parseBulletList(string $text): array {
-    $lines = preg_split('/\r?\n/', $text);
     $data = [];
-    foreach ($lines as $line) {
-        $line = trim($line, "- \t");
-        if (preg_match('/\*\*(.+?)\*\*:\s*(.+)/', $line, $m) || preg_match('/^(.+?):\s*(.+)/', $line, $m)) {
+
+    // Capture patterns like **Key**: Value anywhere in the text
+    if (preg_match_all('/\*\*\s*(.+?)\s*\*\*\s*:\s*([^\n]+)/', $text, $matches, PREG_SET_ORDER)) {
+        foreach ($matches as $m) {
             $key = strtolower(str_replace(' ', '_', trim($m[1])));
             $value = trim($m[2]);
             $data[$key] = $value;
         }
     }
+
+    // Fallback/extra parsing for lines with "Key: Value" or "Key - Value"
+    $lines = preg_split('/\r?\n/', $text);
+    foreach ($lines as $line) {
+        $line = trim($line, "- \t");
+        if (preg_match('/^([^:]+?):\s*(.+)/', $line, $m) || preg_match('/^(.+?)\s+-\s+(.+)/', $line, $m)) {
+            $key = strtolower(str_replace(' ', '_', trim($m[1])));
+            $value = trim($m[2]);
+            if (!isset($data[$key])) {
+                $data[$key] = $value;
+            }
+        }
+    }
+
     return $data;
 }
 
