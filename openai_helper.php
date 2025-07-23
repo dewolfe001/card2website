@@ -81,7 +81,17 @@ function sendImageToOpenAI(string $imagePath, ?string &$error = null) {
         ]]
     ];
 
-    return openaiChatRequest($postData, $error);
+    $response = openaiChatRequest($postData, $error);
+    if (!$response) {
+        return null;
+    }
+
+    $json = json_decode($response, true);
+    if (!$json || !isset($json['choices'][0]['message']['content'])) {
+        return null;
+    }
+
+    return trim($json['choices'][0]['message']['content']);
 }
 /**
  * Convert PDF to image using Imagick

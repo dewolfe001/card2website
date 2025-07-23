@@ -20,6 +20,11 @@ if ($upload) {
                 $analysisArray = $data;
             } elseif (!empty($data['openai_text'])) {
                 $analysisJson = $data['openai_text'];
+                // Attempt to parse markdown bullet list into key/value pairs
+                $analysisArray = parseBulletList($analysisJson);
+                if (!empty($analysisArray)) {
+                    $analysisJson = json_encode($analysisArray, JSON_PRETTY_PRINT);
+                }
             } elseif (!empty($data['raw_text'])) {
                 $analysisJson = $data['raw_text'];
             }
@@ -29,6 +34,20 @@ if ($upload) {
 
 if (!$upload) {
     die('Upload not found');
+}
+
+function parseBulletList(string $text): array {
+    $lines = preg_split('/\r?\n/', $text);
+    $data = [];
+    foreach ($lines as $line) {
+        $line = trim($line, "- \t");
+        if (preg_match('/\*\*(.+?)\*\*:\s*(.+)/', $line, $m) || preg_match('/^(.+?):\s*(.+)/', $line, $m)) {
+            $key = strtolower(str_replace(' ', '_', trim($m[1])));
+            $value = trim($m[2]);
+            $data[$key] = $value;
+        }
+    }
+    return $data;
 }
 
 function renderInputs(array $data, string $prefix = '') {
