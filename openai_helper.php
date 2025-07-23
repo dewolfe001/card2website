@@ -1,8 +1,53 @@
 <?php
 
-function sendImageToOpenAI(string $imagePath) {
+/**
+ * Perform an OpenAI chat request with basic retry support.
+ *
+ * @param array $postData JSON payload for the API
+ * @param string|null $error Receives any error message
+ * @return string|null API response on success, null on failure
+ */
+function openaiChatRequest(array $postData, ?string &$error = null): ?string {
     $apiKey = getenv('OPENAI_API_KEY');
-    if (!$apiKey || !file_exists($imagePath)) {
+    if (!$apiKey) {
+        $error = 'Missing OpenAI API key';
+        return null;
+    }
+
+    $limit = getenv('OPENAI_RETRY_LIMIT');
+    $limit = is_numeric($limit) ? (int)$limit : 3;
+    $limit = $limit > 0 ? $limit : 1;
+
+    for ($attempt = 1; $attempt <= $limit; $attempt++) {
+        $ch = curl_init('https://api.openai.com/v1/chat/completions');
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            'Authorization: Bearer ' . $apiKey,
+            'Content-Type: application/json'
+        ]);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($postData));
+
+        $response = curl_exec($ch);
+        if ($response === false) {
+            $error = 'cURL error: ' . curl_error($ch);
+        } else {
+            $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            if ($status === 200) {
+                curl_close($ch);
+                return $response;
+            }
+            $error = "HTTP $status: $response";
+        }
+        curl_close($ch);
+    }
+
+    return null;
+}
+
+function sendImageToOpenAI(string $imagePath, ?string &$error = null) {
+    if (!file_exists($imagePath)) {
+        $error = 'File not found';
         return null;
     }
     
@@ -25,42 +70,18 @@ function sendImageToOpenAI(string $imagePath) {
         $mimeType = $imageInfo ? $imageInfo['mime'] : 'image/jpeg'; // default fallback
     }
     
-    // Rest of your OpenAI API call
-    $curl = curl_init();
-    curl_setopt_array($curl, [
-        CURLOPT_URL => "https://api.openai.com/v1/chat/completions",
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_POST => true,
-        CURLOPT_HTTPHEADER => [
-            "Authorization: Bearer " . $apiKey,
-            "Content-Type: application/json"
-        ],
-        CURLOPT_POSTFIELDS => json_encode([
-            "model" => "gpt-4o",
-            "messages" => [
-                [
-                    "role" => "user",
-                    "content" => [
-                        [
-                            "type" => "text",
-                            "text" => "Extract the business card information from this image."
-                        ],
-                        [
-                            "type" => "image_url",
-                            "image_url" => [
-                                "url" => "data:" . $mimeType . ";base64," . $imageData
-                            ]
-                        ]
-                    ]
-                ]
+    $postData = [
+        'model' => 'gpt-4o',
+        'messages' => [[
+            'role' => 'user',
+            'content' => [
+                ['type' => 'text', 'text' => 'Extract the business card information from this image.'],
+                ['type' => 'image_url', 'image_url' => ['url' => 'data:' . $mimeType . ';base64,' . $imageData]]
             ]
-        ])
-    ]);
-    
-    $response = curl_exec($curl);
-    curl_close($curl);
-    
-    return $response;
+        ]]
+    ];
+
+    return openaiChatRequest($postData, $error);
 }
 /**
  * Convert PDF to image using Imagick
@@ -150,10 +171,9 @@ if ($result) {
 }
 */
 
-function analyzeBusinessCardStructured(string $imagePath): ?array {
-    $apiKey = getenv('OPENAI_API_KEY');
-    if (!$apiKey || !file_exists($imagePath)) {
-        error_log("LINE 62 - null");
+function analyzeBusinessCardStructured(string $imagePath, ?string &$error = null): ?array {
+    if (!file_exists($imagePath)) {
+        $error = 'File not found';
         return null;
     }
 
@@ -179,24 +199,8 @@ function analyzeBusinessCardStructured(string $imagePath): ?array {
         'temperature' => 0.1
     ];
 
-    $ch = curl_init('https://api.openai.com/v1/chat/completions');
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        'Authorization: Bearer ' . $apiKey,
-        'Content-Type: application/json'
-    ]);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($postData));
-
-    $response = curl_exec($ch);
-    if ($response === false) {
-        curl_close($ch);
-        return null;
-    }
-
-    $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
-    if ($status !== 200) {
+    $response = openaiChatRequest($postData, $error);
+    if (!$response) {
         return null;
     }
 
@@ -210,11 +214,7 @@ function analyzeBusinessCardStructured(string $imagePath): ?array {
     return is_array($data) ? $data : null;
 }
 
-function generateHtmlWithOpenAI(string $prompt) {
-    $apiKey = getenv('OPENAI_API_KEY');
-    if (!$apiKey) {
-        return null;
-    }
+function generateHtmlWithOpenAI(string $prompt, ?string &$error = null) {
 
     $postData = [
         'model' => 'gpt-4o',
@@ -224,24 +224,8 @@ function generateHtmlWithOpenAI(string $prompt) {
         'max_tokens' => 1500
     ];
 
-    $ch = curl_init('https://api.openai.com/v1/chat/completions');
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        'Authorization: Bearer ' . $apiKey,
-        'Content-Type: application/json'
-    ]);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($postData));
-
-    $response = curl_exec($ch);
-    if ($response === false) {
-        curl_close($ch);
-        return null;
-    }
-
-    $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
-    if ($status !== 200) {
+    $response = openaiChatRequest($postData, $error);
+    if (!$response) {
         return null;
     }
 
@@ -253,11 +237,7 @@ function generateHtmlWithOpenAI(string $prompt) {
     return trim($json['choices'][0]['message']['content']);
 }
 
-function classifyNaics(string $text): ?array {
-    $apiKey = getenv('OPENAI_API_KEY');
-    if (!$apiKey) {
-        return null;
-    }
+function classifyNaics(string $text, ?string &$error = null): ?array {
     $prompt = "Identify the best matching 6-digit NAICS code for this business information and respond in JSON with keys code, title, description only.";
     $postData = [
         'model' => 'gpt-4o',
@@ -267,22 +247,8 @@ function classifyNaics(string $text): ?array {
         ],
         'max_tokens' => 200
     ];
-    $ch = curl_init('https://api.openai.com/v1/chat/completions');
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        'Authorization: Bearer ' . $apiKey,
-        'Content-Type: application/json'
-    ]);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($postData));
-    $response = curl_exec($ch);
-    if ($response === false) {
-        curl_close($ch);
-        return null;
-    }
-    $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
-    if ($status !== 200) {
+    $response = openaiChatRequest($postData, $error);
+    if (!$response) {
         return null;
     }
     $json = json_decode($response, true);
@@ -297,11 +263,7 @@ function classifyNaics(string $text): ?array {
     return $data;
 }
 
-function generateWebsiteFromData(array $businessData, string $additional = ''): ?array {
-    $apiKey = getenv('OPENAI_API_KEY');
-    if (!$apiKey) {
-        return null;
-    }
+function generateWebsiteFromData(array $businessData, string $additional = '', ?string &$error = null): ?array {
     $system = 'You are an expert web developer and SEO specialist. You create high-quality, SEO-optimized one-page websites using modern web standards and best practices.';
     $userContent = "Using the following business card data, create a professional one-page website with optimal technical SEO:\n\nBUSINESS DATA:\n" . json_encode($businessData) . "\n\nADDITIONAL USER REQUIREMENTS:\n" . $additional . "\n\nREQUIREMENTS:\n1. Use Tailwind CSS framework for styling\n2. Incorporate the exact colors from the business card\n3. Use web-safe fonts that match the business card font characteristics\n4. Include the logo description in appropriate placement\n5. Research and include the likely NAICS code for this business type\n6. Add 300-500 words of relevant, SEO-optimized content about the business/industry\n7. Implement technical SEO best practices:\n   - Proper HTML5 semantic structure\n   - Meta tags (title, description, keywords)\n   - Open Graph tags\n   - Schema.org markup for business info\n   - LD-JSON structured data\n8. Include contact information, business hours (estimated if not provided)\n9. Ensure mobile responsiveness\n10. Add appropriate alt text for images\n11. Include relevant internal anchor links\n12. Optimize for Core Web Vitals\n\nRespond ONLY with valid JSON in this format:\n{\n  \"html_code\": \"complete HTML source code as escaped string\",\n  \"seo_elements\": {\n    \"title_tag\": \"string\",\n    \"meta_description\": \"string\",\n    \"keywords\": [\"string\"],\n    \"naics_code\": \"string\",\n    \"naics_description\": \"string\"\n  },\n  \"content_summary\": {\n    \"word_count\": 0,\n    \"key_topics\": [\"string\"],\n    \"schema_types\": [\"string\"]\n  },\n  \"technical_features\": {\n    \"responsive\": true,\n    \"semantic_html\": true,\n    \"structured_data\": true,\n    \"accessibility\": true\n  }\n}";
 
@@ -315,24 +277,8 @@ function generateWebsiteFromData(array $businessData, string $additional = ''): 
         'temperature' => 0.2
     ];
 
-    $ch = curl_init('https://api.openai.com/v1/chat/completions');
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        'Authorization: Bearer ' . $apiKey,
-        'Content-Type: application/json'
-    ]);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($postData));
-
-    $response = curl_exec($ch);
-    if ($response === false) {
-        curl_close($ch);
-        return null;
-    }
-
-    $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
-    if ($status !== 200) {
+    $response = openaiChatRequest($postData, $error);
+    if (!$response) {
         return null;
     }
 
