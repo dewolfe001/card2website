@@ -18,6 +18,8 @@ if ($upload) {
             if (isset($data['business_info']) || isset($data['design_elements'])) {
                 $analysisJson = json_encode($data, JSON_PRETTY_PRINT);
                 $analysisArray = $data;
+                // Exclude raw text fields from the editable form
+                unset($analysisArray['openai_text'], $analysisArray['raw_text']);
             } elseif (!empty($data['openai_text'])) {
                 $analysisJson = $data['openai_text'];
                 // Attempt to parse markdown bullet list into key/value pairs
