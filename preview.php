@@ -41,29 +41,41 @@ if (!$upload) {
 function parseBulletList(string $text): array {
     $data = [];
 
-    // Capture patterns like **Key**: Value anywhere in the text
-    if (preg_match_all('/\*\*\s*(.+?)\s*\*\*\s*:\s*([^\n]+)/', $text, $matches, PREG_SET_ORDER)) {
+    // First try: Match lines with format "- **Key:** Value"
+    if (preg_match_all('/^\s*-\s*\*\*\s*(.+?)\s*:\s*\*\*\s*(.+)$/m', $text, $matches, PREG_SET_ORDER)) {
         foreach ($matches as $m) {
             $key = strtolower(str_replace(' ', '_', trim($m[1])));
             $value = trim($m[2]);
             $data[$key] = $value;
         }
     }
-
-    /*
-    // Fallback/extra parsing for lines with "Key: Value" or "Key - Value"
-    $lines = preg_split('/\r?\n/', $text);
-    foreach ($lines as $line) {
-        $line = trim($line, "- \t");
-        if (preg_match('/^([^:]+?):\s*(.+)/', $line, $m) || preg_match('/^(.+?)\s+-\s+(.+)/', $line, $m)) {
+    // Second try: Match format "**Key**: Value" (your original pattern, but improved)
+    elseif (preg_match_all('/^\s*-?\s*\*\*\s*(.+?)\s*\*\*\s*:\s*(.+)$/m', $text, $matches, PREG_SET_ORDER)) {
+        foreach ($matches as $m) {
             $key = strtolower(str_replace(' ', '_', trim($m[1])));
             $value = trim($m[2]);
-            if (!isset($data[$key])) {
-                $data[$key] = $value;
+            $data[$key] = $value;
+        }
+    }
+    // Third try: Match simple "Key: Value" or "- Key: Value" patterns
+    else {
+        $lines = preg_split('/\r?\n/', $text);
+        foreach ($lines as $line) {
+            $line = trim($line);
+            // Remove leading dash and whitespace
+            $line = preg_replace('/^\s*-\s*/', '', $line);
+            
+            if (preg_match('/^([^:]+?):\s*(.+)/', $line, $m)) {
+                // Remove markdown formatting from key
+                $key = preg_replace('/\*\*(.+?)\*\*/', '$1', trim($m[1]));
+                $key = strtolower(str_replace(' ', '_', $key));
+                $value = trim($m[2]);
+                if (!empty($key) && !empty($value)) {
+                    $data[$key] = $value;
+                }
             }
         }
     }
-    */
 
     return $data;
 }
