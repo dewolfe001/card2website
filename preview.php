@@ -82,16 +82,16 @@ function parseBulletList(string $text): array {
 
 function renderInputs(array $data, string $prefix = '') {
     foreach ($data as $key => $value) {
-        $path = $prefix === '' ? $key : $prefix . '.' . $key;
+        $fieldName = $prefix === '' ? $key : $prefix . '[' . $key . ']';
         $label = ucwords(str_replace('_', ' ', $key));
         if (is_array($value)) {
             echo '<fieldset class="border p-2 mb-2">';
             echo '<legend class="font-semibold">' . htmlspecialchars($label) . '</legend>';
-            renderInputs($value, $path);
+            renderInputs($value, $fieldName);
             echo '</fieldset>';
         } else {
             echo '<label class="block mt-2">' . htmlspecialchars($label) . '</label>';
-            echo '<input type="text" data-json-path="' . htmlspecialchars($path) . '" value="' . htmlspecialchars($value) . '" class="w-full border p-2 text-sm" />';
+            echo '<input type="text" name="' . htmlspecialchars($fieldName) . '" value="' . htmlspecialchars($value) . '" class="w-full border p-2 text-sm" />';
         }
     }
 }
@@ -370,14 +370,16 @@ function renderInputs(array $data, string $prefix = '') {
         <form id="dataForm" action="generate.php" method="post" enctype="multipart/form-data" class="bg-white p-4 rounded shadow mb-4">
             <h2 class="text-lg font-semibold mb-2">Review &amp; Edit Data</h2>
             <input type="hidden" name="id" value="<?php echo $id; ?>" />
-            <textarea id="edited_data" name="edited_data" style="display:none;"><?php echo htmlspecialchars($analysisJson); ?></textarea>
+            
             <?php if ($analysisArray): ?>
                 <?php renderInputs($analysisArray); ?>
             <?php else: ?>
-                <textarea id="analysis_text" rows="12" class="w-full border p-2 text-sm mb-4"><?php echo htmlspecialchars($analysisJson); ?></textarea>
+                <textarea name="raw_analysis_text" rows="12" class="w-full border p-2 text-sm mb-4"><?php echo htmlspecialchars($analysisJson); ?></textarea>
             <?php endif; ?>
+            
             <label class="block mt-4 mb-2 font-semibold">Describe your business</label>
             <textarea name="additional_details" rows="4" class="w-full border p-2 text-sm"></textarea>
+            
             <label class="block mt-4 mb-2 font-semibold">Add images we could add to your website</label>
             <div class="upload-container">
                 <div class="button-group">
@@ -424,185 +426,169 @@ function renderInputs(array $data, string $prefix = '') {
             <a href="index.php" class="text-blue-600">Upload another card</a>
         </div>
     </div>
-    <?php if ($analysisArray): ?>
-    <script>
-    function buildJson() {
-        const data = {};
-        document.querySelectorAll('[data-json-path]').forEach(el => {
-            const path = el.dataset.jsonPath.split('.');
-            let obj = data;
-            for (let i = 0; i < path.length - 1; i++) {
-                const key = path[i];
-                if (!obj[key]) obj[key] = {};
-                obj = obj[key];
-            }
-            obj[path[path.length - 1]] = el.value;
-        });
-        return data;
-    }
-    document.getElementById('dataForm').addEventListener('submit', function(e){
-        const json = buildJson();
-        document.getElementById('edited_data').value = JSON.stringify(json);
-    });
-    </script>
-    <?php else: ?>
-    <script>
-    document.getElementById('dataForm').addEventListener('submit', function(){
-    document.getElementById('edited_data').value = document.getElementById('analysis_text').value;
-    });
-    </script>
-    <?php endif; ?>
-    <script>
-    let selectedFiles = [];
 
-    const dropZone = document.getElementById('dropZone');
-    const fileInput = document.getElementById('fileInput');
-    const fileGrid = document.getElementById('fileGrid');
-    const fileCount = document.getElementById('fileCount');
-    const clearBtn = document.getElementById('clearBtn');
+<script>
+let selectedFiles = [];
 
-    function triggerFileInput() {
-        fileInput.click();
-    }
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+const fileGrid = document.getElementById('fileGrid');
+const fileCount = document.getElementById('fileCount');
+const clearBtn = document.getElementById('clearBtn');
 
-    fileInput.addEventListener('change', function(e) {
-        addFiles(Array.from(e.target.files));
-    });
+function triggerFileInput() {
+    fileInput.click();
+}
 
-    dropZone.addEventListener('dragover', function(e) {
-        e.preventDefault();
-        dropZone.classList.add('dragover');
-    });
+fileInput.addEventListener('change', function(e) {
+    addFiles(Array.from(e.target.files));
+});
 
-    dropZone.addEventListener('dragleave', function(e) {
-        e.preventDefault();
-        if (!dropZone.contains(e.relatedTarget)) {
-            dropZone.classList.remove('dragover');
-        }
-    });
+dropZone.addEventListener('dragover', function(e) {
+    e.preventDefault();
+    dropZone.classList.add('dragover');
+});
 
-    dropZone.addEventListener('drop', function(e) {
-        e.preventDefault();
+dropZone.addEventListener('dragleave', function(e) {
+    e.preventDefault();
+    if (!dropZone.contains(e.relatedTarget)) {
         dropZone.classList.remove('dragover');
-        const files = Array.from(e.dataTransfer.files).filter(file => file.type.startsWith('image/'));
-        addFiles(files);
+    }
+});
+
+dropZone.addEventListener('drop', function(e) {
+    e.preventDefault();
+    dropZone.classList.remove('dragover');
+    const files = Array.from(e.dataTransfer.files).filter(file => file.type.startsWith('image/'));
+    addFiles(files);
+});
+
+dropZone.addEventListener('click', function() {
+    fileInput.click();
+});
+
+function addFiles(newFiles) {
+    const uniqueFiles = newFiles.filter(newFile =>
+        !selectedFiles.some(existing => existing.name === newFile.name && existing.size === newFile.size)
+    );
+    selectedFiles = [...selectedFiles, ...uniqueFiles];
+    updateDisplay();
+}
+
+function removeFile(index) {
+    selectedFiles.splice(index, 1);
+    updateDisplay();
+}
+
+function clearQueue() {
+    selectedFiles = [];
+    updateDisplay();
+}
+
+function updateDisplay() {
+    updateFileCount();
+    updateFileGrid();
+    updateClearButton();
+}
+
+function updateFileCount() {
+    const count = selectedFiles.length;
+    if (count === 0) {
+        fileCount.textContent = 'No files selected';
+        fileCount.style.background = 'linear-gradient(135deg, #ccc 0%, #999 100%)';
+    } else {
+        fileCount.textContent = `${count} file${count !== 1 ? 's' : ''} ready to upload`;
+        fileCount.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+    }
+}
+
+function updateFileGrid() {
+    if (selectedFiles.length === 0) {
+        fileGrid.innerHTML = '<div class="empty-state">Your uploaded files will appear here</div>';
+        return;
+    }
+
+    fileGrid.innerHTML = '';
+
+    selectedFiles.forEach((file, index) => {
+        const fileCard = document.createElement('div');
+        fileCard.className = 'file-card';
+
+        const preview = document.createElement('img');
+        preview.className = 'file-preview';
+        preview.alt = 'File preview';
+
+        const reader = new FileReader();
+        reader.onload = e => { preview.src = e.target.result; };
+        reader.readAsDataURL(file);
+
+        const fileName = document.createElement('div');
+        fileName.className = 'file-name';
+        fileName.textContent = file.name;
+
+        const fileSize = document.createElement('div');
+        fileSize.className = 'file-size';
+        fileSize.textContent = formatFileSize(file.size);
+
+        const removeBtn = document.createElement('button');
+        removeBtn.className = 'remove-btn';
+        removeBtn.innerHTML = '×';
+        removeBtn.onclick = () => removeFile(index);
+
+        const progressBar = document.createElement('div');
+        progressBar.className = 'progress-bar';
+        const progressFill = document.createElement('div');
+        progressFill.className = 'progress-fill';
+        progressBar.appendChild(progressFill);
+
+        fileCard.appendChild(removeBtn);
+        fileCard.appendChild(preview);
+        fileCard.appendChild(fileName);
+        fileCard.appendChild(fileSize);
+        fileCard.appendChild(progressBar);
+
+        fileGrid.appendChild(fileCard);
     });
+}
 
-    dropZone.addEventListener('click', function() {
-        fileInput.click();
-    });
+function updateClearButton() {
+    clearBtn.disabled = selectedFiles.length === 0;
+}
 
-    function addFiles(newFiles) {
-        const uniqueFiles = newFiles.filter(newFile =>
-            !selectedFiles.some(existing => existing.name === newFile.name && existing.size === newFile.size)
-        );
-        selectedFiles = [...selectedFiles, ...uniqueFiles];
-        updateDisplay();
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+function scrollFiles(direction) {
+    const container = fileGrid;
+    const scrollAmount = 220;
+    if (direction === 'left') {
+        container.scrollLeft -= scrollAmount;
+    } else {
+        container.scrollLeft += scrollAmount;
     }
+}
 
-    function removeFile(index) {
-        selectedFiles.splice(index, 1);
-        updateDisplay();
-    }
-
-    function clearQueue() {
-        selectedFiles = [];
-        updateDisplay();
-    }
-
-    function updateDisplay() {
-        updateFileCount();
-        updateFileGrid();
-        updateClearButton();
-    }
-
-    function updateFileCount() {
-        const count = selectedFiles.length;
-        if (count === 0) {
-            fileCount.textContent = 'No files selected';
-            fileCount.style.background = 'linear-gradient(135deg, #ccc 0%, #999 100%)';
-        } else {
-            fileCount.textContent = `${count} file${count !== 1 ? 's' : ''} ready to upload`;
-            fileCount.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
-        }
-    }
-
-    function updateFileGrid() {
-        if (selectedFiles.length === 0) {
-            fileGrid.innerHTML = '<div class="empty-state">Your uploaded files will appear here</div>';
-            return;
-        }
-
-        fileGrid.innerHTML = '';
-
-        selectedFiles.forEach((file, index) => {
-            const fileCard = document.createElement('div');
-            fileCard.className = 'file-card';
-
-            const preview = document.createElement('img');
-            preview.className = 'file-preview';
-            preview.alt = 'File preview';
-
-            const reader = new FileReader();
-            reader.onload = e => { preview.src = e.target.result; };
-            reader.readAsDataURL(file);
-
-            const fileName = document.createElement('div');
-            fileName.className = 'file-name';
-            fileName.textContent = file.name;
-
-            const fileSize = document.createElement('div');
-            fileSize.className = 'file-size';
-            fileSize.textContent = formatFileSize(file.size);
-
-            const removeBtn = document.createElement('button');
-            removeBtn.className = 'remove-btn';
-            removeBtn.innerHTML = '×';
-            removeBtn.onclick = () => removeFile(index);
-
-            const progressBar = document.createElement('div');
-            progressBar.className = 'progress-bar';
-            const progressFill = document.createElement('div');
-            progressFill.className = 'progress-fill';
-            progressBar.appendChild(progressFill);
-
-            fileCard.appendChild(removeBtn);
-            fileCard.appendChild(preview);
-            fileCard.appendChild(fileName);
-            fileCard.appendChild(fileSize);
-            fileCard.appendChild(progressBar);
-
-            fileGrid.appendChild(fileCard);
-        });
-    }
-
-    function updateClearButton() {
-        clearBtn.disabled = selectedFiles.length === 0;
-    }
-
-    function formatFileSize(bytes) {
-        if (bytes === 0) return '0 Bytes';
-        const k = 1024;
-        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-    }
-
-    function scrollFiles(direction) {
-        const container = fileGrid;
-        const scrollAmount = 220;
-        if (direction === 'left') {
-            container.scrollLeft -= scrollAmount;
-        } else {
-            container.scrollLeft += scrollAmount;
-        }
-    }
-
-    document.getElementById('dataForm').addEventListener('submit', function() {
-        const dt = new DataTransfer();
-        selectedFiles.forEach(file => dt.items.add(file));
-        fileInput.files = dt.files;
-    });
-    </script>
+// SIMPLE FORM SUBMISSION - just update file input before submit
+/*
+document.getElementById('dataForm').addEventListener('submit', function(e) {
+    console.log('Form submitting...'); // Debug log
+    
+    // Update the file input with selected files
+    const dt = new DataTransfer();
+    selectedFiles.forEach(file => dt.items.add(file));
+    fileInput.files = dt.files;
+    
+    console.log('Files attached:', selectedFiles.length);
+    
+    // Let the form submit normally
+    return true;
+});
+*/
+</script>
 </body>
 </html>
