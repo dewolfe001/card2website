@@ -35,6 +35,29 @@ if (!$businessData) {
     die('Invalid business data');
 }
 
+// Handle additional website images
+if (!empty($_FILES['website_images']['name'][0])) {
+    $imgDir = __DIR__ . '/uploads/site_images/' . $id . '/';
+    if (!is_dir($imgDir)) {
+        mkdir($imgDir, 0777, true);
+    }
+    $allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    foreach ($_FILES['website_images']['tmp_name'] as $idx => $tmp) {
+        if ($_FILES['website_images']['error'][$idx] === UPLOAD_ERR_OK) {
+            $type = mime_content_type($tmp);
+            if (in_array($type, $allowed)) {
+                $name = basename($_FILES['website_images']['name'][$idx]);
+                $name = time() . '_' . preg_replace('/[^A-Za-z0-9._-]/', '_', $name);
+                $dest = $imgDir . $name;
+                if (move_uploaded_file($tmp, $dest)) {
+                    $stmt = $pdo->prepare('INSERT INTO website_images (upload_id, filename, created_at) VALUES (?, ?, NOW())');
+                    $stmt->execute([$id, $name]);
+                }
+            }
+        }
+    }
+}
+
 $result = generateWebsiteFromData($businessData, $additional);
 $html = $result['html_code'] ?? null;
 if (!$html) {
