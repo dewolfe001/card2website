@@ -50,6 +50,7 @@ function parseBulletList(string $text): array {
         }
     }
 
+    /*
     // Fallback/extra parsing for lines with "Key: Value" or "Key - Value"
     $lines = preg_split('/\r?\n/', $text);
     foreach ($lines as $line) {
@@ -62,6 +63,7 @@ function parseBulletList(string $text): array {
             }
         }
     }
+    */
 
     return $data;
 }
@@ -364,7 +366,7 @@ function renderInputs(array $data, string $prefix = '') {
             <?php endif; ?>
             <label class="block mt-4 mb-2 font-semibold">Describe your business</label>
             <textarea name="additional_details" rows="4" class="w-full border p-2 text-sm"></textarea>
-            <label class="block mt-4 mb-2 font-semibold">Upload images for your website</label>
+            <label class="block mt-4 mb-2 font-semibold">Add images we could add to your website</label>
             <div class="upload-container">
                 <div class="button-group">
                     <button type="button" class="upload-btn" onclick="triggerFileInput()">
