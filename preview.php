@@ -91,7 +91,14 @@ function renderInputs(array $data, string $prefix = '') {
             echo '</fieldset>';
         } else {
             echo '<label class="block mt-2">' . htmlspecialchars($label) . '</label>';
-            echo '<input type="text" name="' . htmlspecialchars($fieldName) . '" value="' . htmlspecialchars($value) . '" class="w-full border p-2 text-sm" />';
+
+            // Check if value is a hex color (# followed by 6 hex characters)
+            $isHexColor = preg_match('/^#[0-9A-Fa-f]{6}$/', $value);
+            $inputType = $isHexColor ? 'color' : 'text';
+            
+            echo '<input type="' . $inputType . '" name="' . htmlspecialchars($fieldName) . '" value="' . htmlspecialchars($value) . '" class="w-full border p-2 text-sm" />';
+        
+            // echo '<input type="text" name="' . htmlspecialchars($fieldName) . '" value="' . htmlspecialchars($value) . '" class="w-full border p-2 text-sm" />';
         }
     }
 }
