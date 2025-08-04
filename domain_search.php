@@ -60,6 +60,9 @@ foreach ($availability as $dom => $avail) {
             </tbody>
         </table>
         <div class="text-center mt-6">
+            <a href="/domain_search.php?id=<?= $id ?>" class="text-blue-600">Try Again?</a>
+        </div>
+        <div class="text-center mt-6">
             <a href="view_site.php?id=<?= $id ?>" class="text-blue-600">Back to site</a>
         </div>
     </div>
