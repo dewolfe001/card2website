@@ -42,7 +42,60 @@ function suggestDomainNames(string $text, int $count = 5): array {
     return $suggestions;
 }
 
-function namecheapApiRequest(array $params): ?SimpleXMLElement {
+
+function namecheapApiRequest(array $params): ?SimpleXMLElement
+{
+    $apiUser  = getenv('NAMECHEAP_API_USER');
+    $apiKey   = getenv('NAMECHEAP_API_KEY');
+    $userName = getenv('NAMECHEAP_USERNAME');
+    $clientIp = '209.54.114.162'; // getenv('NAMECHEAP_CLIENT_IP');
+
+    if (! $apiUser || ! $apiKey || ! $userName || ! $clientIp) {
+        error_log("Namecheap creds missing or CLIENT_IP not set");
+        return null;
+    }
+
+    $base = 'https://api.namecheap.com/xml.response';
+    // merge defaults first, then any overrides in $params
+    $query = array_merge([
+        'ApiUser'   => $apiUser,
+        'ApiKey'    => $apiKey,
+        'UserName'  => $userName,
+        'ClientIp'  => $clientIp,
+    ], $params);
+
+    $url = $base . '?' . http_build_query($query);
+    error_log("Namecheap API URL: $url");  // <— inspect this in your logs
+
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    $resp = curl_exec($ch);
+    $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    if ($resp === false) {
+        error_log("Namecheap curl error");
+        return null;
+    }
+    if ($code !== 200) {
+        error_log("Namecheap returned HTTP $code: $resp");
+        return null;
+    }
+
+    $xml = @simplexml_load_string($resp);
+    if (! $xml) {
+        error_log("Failed to parse XML: $resp");
+        return null;
+    }
+    // catch any API‑level errors
+    if (isset($xml->Errors->Error)) {
+        error_log("Namecheap API error: " . (string)$xml->Errors->Error);
+    }
+    return $xml;
+}
+
+
+function xnamecheapApiRequest(array $params): ?SimpleXMLElement {
     $apiUser = getenv('NAMECHEAP_API_USER');
     $apiKey = getenv('NAMECHEAP_API_KEY');
     $userName = getenv('NAMECHEAP_USERNAME');
@@ -50,6 +103,7 @@ function namecheapApiRequest(array $params): ?SimpleXMLElement {
     if (!$apiUser || !$apiKey || !$userName || !$clientIp) {
         return null;
     }
+    
     $base = 'https://api.namecheap.com/xml.response';
     $query = array_merge([
         'ApiUser' => $apiUser,
@@ -78,6 +132,7 @@ function checkDomainAvailability(array $domains): array {
         foreach ($domains as $d) {
             $result[$d] = null;
         }
+        error_log(print_r($xml, TRUE));
         return $result;
     }
     foreach ($xml->CommandResponse->DomainCheckResult as $item) {
@@ -116,4 +171,3 @@ function registerDomain(string $domain): ?string {
     return null;
 }
 ?>
-
