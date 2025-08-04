@@ -22,10 +22,20 @@ if ($text === '') {
 
 $suggestions = suggestDomainNames($text, 5);
 $availability = checkDomainAvailability($suggestions);
-
-$stmt = $pdo->prepare('INSERT INTO domain_suggestions (upload_id, suggestion, availability, checked_at) VALUES (?, ?, ?, NOW())');
+$insertStmt = $pdo->prepare('INSERT INTO domain_suggestions (upload_id, suggestion, availability, checked_at) VALUES (?, ?, ?, NOW())');
 foreach ($availability as $dom => $avail) {
-    $stmt->execute([$id, $dom, is_null($avail) ? null : ($avail ? 1 : 0)]);
+    $insertStmt->execute([$id, $dom, is_null($avail) ? null : ($avail ? 1 : 0)]);
+}
+
+$customDomain = '';
+$customAvail = null;
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $customDomain = trim($_POST['custom_domain'] ?? '');
+    if ($customDomain !== '') {
+        $customCheck = checkDomainAvailability([$customDomain]);
+        $customAvail = $customCheck[$customDomain] ?? null;
+        $insertStmt->execute([$id, $customDomain, is_null($customAvail) ? null : ($customAvail ? 1 : 0)]);
+    }
 }
 ?>
 <!DOCTYPE html>
@@ -59,6 +69,22 @@ foreach ($availability as $dom => $avail) {
                 <?php endforeach; ?>
             </tbody>
         </table>
+        <div class="mt-6">
+            <form method="post" action="domain_search.php?id=<?= $id ?>" class="flex justify-center items-center space-x-2">
+                <input type="text" name="custom_domain" value="<?= htmlspecialchars($customDomain) ?>" placeholder="Enter domain to check" class="border p-2 rounded w-64" />
+                <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded">Check</button>
+            </form>
+            <?php if ($customDomain !== ''): ?>
+            <div class="text-center mt-2">
+                <p>Domain <?= htmlspecialchars($customDomain) ?>:
+                    <?php if ($customAvail === null): ?>Unknown<?php elseif ($customAvail): ?>Available<?php else: ?>Taken<?php endif; ?>
+                </p>
+                <?php if ($customAvail): ?>
+                <a href="register_domain.php?domain=<?= urlencode($customDomain) ?>&upload_id=<?= $id ?>" class="bg-green-600 text-white px-2 py-1 rounded inline-block mt-2">Register</a>
+                <?php endif; ?>
+            </div>
+            <?php endif; ?>
+        </div>
         <div class="text-center mt-6">
             <a href="/domain_search.php?id=<?= $id ?>" class="text-blue-600">Try Again?</a>
         </div>
