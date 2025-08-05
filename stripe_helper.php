@@ -28,7 +28,7 @@ function stripeRequest(string $method, string $endpoint, array $params = []) {
     return json_decode($response, true);
 }
 
-function createCheckoutSession(string $customerEmail, string $priceId, string $successUrl, string $cancelUrl) {
+function createCheckoutSession(string $customerEmail, string $priceId, string $successUrl, string $cancelUrl, ?string $clientReferenceId = null) {
     $separator = (strpos($successUrl, '?') === false) ? '?' : '&';
     $params = [
         'mode' => 'subscription',
@@ -37,6 +37,9 @@ function createCheckoutSession(string $customerEmail, string $priceId, string $s
         'success_url' => $successUrl . $separator . 'session_id={CHECKOUT_SESSION_ID}',
         'cancel_url' => $cancelUrl
     ];
+    if ($clientReferenceId !== null) {
+        $params['client_reference_id'] = $clientReferenceId;
+    }
     // Because Stripe expects line_items[] style fields, manually build query
     $flat = [];
     foreach ($params['line_items'] as $i => $item) {
