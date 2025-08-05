@@ -1,20 +1,25 @@
 <?php
 require 'config.php';
-require 'auth.php';
+session_start();
 
 $domain = $_GET['domain'] ?? '';
 $uploadId = isset($_GET['upload_id']) ? (int)$_GET['upload_id'] : 0;
+$loggedIn = isset($_SESSION['user_id']);
 if ($domain === '') {
     die('Domain not specified');
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $email = trim($_POST['email'] ?? '');
-    $password = $_POST['password'] ?? '';
     $plan = $_POST['plan'] ?? 'monthly';
     if (!in_array($plan, ['monthly', 'yearly'])) {
         $plan = 'monthly';
     }
+    if ($loggedIn) {
+        header('Location: subscribe.php?plan=' . urlencode($plan) . '&domain=' . urlencode($domain) . '&upload_id=' . $uploadId);
+        exit;
+    }
+    $email = trim($_POST['email'] ?? '');
+    $password = $_POST['password'] ?? '';
     if ($email && $password) {
         $stmt = $pdo->prepare('SELECT id FROM users WHERE email = ?');
         $stmt->execute([$email]);
@@ -44,23 +49,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </head>
 <body class="bg-gray-100">
     <div class="container mx-auto p-8 max-w-md">
-        <h1 class="text-2xl font-bold mb-4 text-center">Register <?= htmlspecialchars($domain) ?></h1>
+        <h1 class="text-2xl font-bold mb-4 text-center">
+            <?= $loggedIn ? 'Choose Plan for ' . htmlspecialchars($domain) : 'Register ' . htmlspecialchars($domain) ?>
+        </h1>
         <?php if (!empty($error)) echo '<p class="text-red-600 mb-4">' . htmlspecialchars($error) . '</p>'; ?>
         <form method="post" class="bg-white p-6 rounded shadow">
+            <?php if (!$loggedIn): ?>
             <input id="email" class="border p-2 w-full mb-2" type="email" name="email" placeholder="Email" required />
             <p id="email-msg"></p>
             <input class="border p-2 w-full mb-4" type="password" name="password" placeholder="Password" required />
+            <?php endif; ?>
             <div class="mb-4">
                 <label class="mr-4"><input type="radio" name="plan" value="monthly" checked /> $24.99 / Month</label>
                 <label><input type="radio" name="plan" value="yearly" /> $199 / Year</label>
             </div>
             <button class="bg-blue-600 text-white px-4 py-2 rounded w-full" type="submit">Checkout</button>
         </form>
+        <?php if (!$loggedIn): ?>
         <?php $next = urlencode('payment.php?domain=' . $domain . '&upload_id=' . $uploadId); ?>
         <div class="text-center mt-4">
             <a href="login.php?next=<?= $next ?>" class="text-blue-600">Returning User? Login</a>
         </div>
+        <?php else: ?>
+        <div class="text-center mt-4">
+            <a href="logout.php" class="text-blue-600">Logout</a>
+        </div>
+        <?php endif; ?>
     </div>
+    <?php if (!$loggedIn): ?>
     <script>
     document.getElementById('email').addEventListener('blur', function() {
         fetch('check_email.php?email=' + encodeURIComponent(this.value))
@@ -77,6 +93,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             });
     });
     </script>
+    <?php endif; ?>
 </body>
 </html>
 
