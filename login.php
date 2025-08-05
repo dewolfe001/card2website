@@ -2,16 +2,18 @@
 require 'config.php';
 require 'auth.php';
 
+$next = $_GET['next'] ?? 'account.php';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email = trim($_POST['email'] ?? '');
     $password = $_POST['password'] ?? '';
+    $next = $_POST['next'] ?? $next;
     $stmt = $pdo->prepare('SELECT id, password_hash, is_admin FROM users WHERE email = ?');
     $stmt->execute([$email]);
     $user = $stmt->fetch();
     if ($user && password_verify($password, $user['password_hash'])) {
         $_SESSION['user_id'] = $user['id'];
         $_SESSION['is_admin'] = $user['is_admin'];
-        header('Location: account.php');
+        header('Location: ' . $next);
         exit;
     } else {
         $error = 'Invalid credentials';
@@ -32,6 +34,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <form method="post">
 <input class="border p-2 w-full mb-2" type="email" name="email" placeholder="Email" required />
 <input class="border p-2 w-full mb-4" type="password" name="password" placeholder="Password" required />
+<input type="hidden" name="next" value="<?= htmlspecialchars($next) ?>" />
 <button class="bg-blue-600 text-white px-4 py-2 rounded" type="submit">Login</button>
 </form>
 <p class="mt-2">No account? <a class="text-blue-600" href="register.php">Register</a></p>
