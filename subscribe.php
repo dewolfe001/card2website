@@ -24,7 +24,7 @@ $priceId = getenv($plan === 'yearly' ? 'STRIPE_PRICE_ID_YEARLY' : 'STRIPE_PRICE_
 $baseUrl = (isset($_SERVER['HTTPS']) ? 'https://' : 'http://') . $_SERVER['HTTP_HOST'];
 $successUrl = $baseUrl . '/subscribe_success.php?domain=' . urlencode($domain) . '&upload_id=' . $uploadId;
 $cancelUrl = $baseUrl . '/payment.php?domain=' . urlencode($domain) . '&upload_id=' . $uploadId;
-$session = createCheckoutSession($user['email'], $priceId, $successUrl, $cancelUrl);
+$session = createCheckoutSession($user['email'], $priceId, $successUrl, $cancelUrl, (string)$userId);
 if ($session && isset($session['url'])) {
     header('Location: ' . $session['url']);
     exit;

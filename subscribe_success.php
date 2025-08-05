@@ -2,7 +2,6 @@
 require 'config.php';
 require 'auth.php';
 require 'stripe_helper.php';
-require_login();
 
 $userId = current_user_id();
 $sessionId = $_GET['session_id'] ?? null;
@@ -11,8 +10,19 @@ $uploadId = isset($_GET['upload_id']) ? (int)$_GET['upload_id'] : 0;
 if ($sessionId) {
     $session = stripeRequest('GET', 'checkout/sessions/' . $sessionId);
     if ($session && isset($session['subscription'], $session['customer'])) {
-        $stmt = $pdo->prepare('INSERT INTO billing_subscriptions (user_id, stripe_customer_id, stripe_subscription_id, plan_type, status) VALUES (?, ?, ?, ?, ?)');
-        $stmt->execute([$userId, $session['customer'], $session['subscription'], 'hosting', 'active']);
+        if (!$userId && isset($session['client_reference_id'])) {
+            $stmt = $pdo->prepare('SELECT id FROM users WHERE id = ?');
+            $stmt->execute([$session['client_reference_id']]);
+            $user = $stmt->fetch();
+            if ($user) {
+                $_SESSION['user_id'] = $user['id'];
+                $userId = $user['id'];
+            }
+        }
+        if ($userId) {
+            $stmt = $pdo->prepare('INSERT INTO billing_subscriptions (user_id, stripe_customer_id, stripe_subscription_id, plan_type, status) VALUES (?, ?, ?, ?, ?)');
+            $stmt->execute([$userId, $session['customer'], $session['subscription'], 'hosting', 'active']);
+        }
     }
 }
 if ($domain !== '' && $uploadId > 0) {
