@@ -41,10 +41,10 @@ Set `WHM_HOST`, `WHM_API_TOKEN`, and `WHM_ROOT_USER` in your `.env` file for dep
 Use `publish_to_whm.php?upload_id=ID&domain=example.com` to create a new WHM account and upload the generated site to the account's `public_html` directory.
 
 ## Billing
-The app integrates with Stripe for recurring subscriptions. Set `STRIPE_SECRET_KEY` and
-`STRIPE_PRICE_ID` in your `.env` file. After registering and logging in, users can start a
-subscription and manage billing through the Stripe customer portal. Webhook events update the
-`billing_subscriptions` table.
+The app integrates with Stripe for recurring subscriptions. Set `STRIPE_SECRET_KEY`,
+`STRIPE_PRICE_ID_MONTHLY`, and `STRIPE_PRICE_ID_YEARLY` in your `.env` file. After registering and
+logging in, users can start a subscription and manage billing through the Stripe customer portal.
+Webhook events update the `billing_subscriptions` table.
 
 ## Admin Dashboard
 Users marked as admins can access `admin_dashboard.php` from their account page. The dashboard

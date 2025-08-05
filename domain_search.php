@@ -62,7 +62,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </td>
                     <td class="p-2 text-center">
                         <?php if ($avail): ?>
-                        <a href="register_domain.php?domain=<?= urlencode($dom) ?>&upload_id=<?= $id ?>" class="bg-green-600 text-white px-2 py-1 rounded">Register</a>
+                        <a href="payment.php?domain=<?= urlencode($dom) ?>&upload_id=<?= $id ?>" class="bg-green-600 text-white px-2 py-1 rounded">Register</a>
                         <?php endif; ?>
                     </td>
                 </tr>
@@ -80,7 +80,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <?php if ($customAvail === null): ?>Unknown<?php elseif ($customAvail): ?>Available<?php else: ?>Taken<?php endif; ?>
                 </p>
                 <?php if ($customAvail): ?>
-                <a href="register_domain.php?domain=<?= urlencode($customDomain) ?>&upload_id=<?= $id ?>" class="bg-green-600 text-white px-2 py-1 rounded inline-block mt-2">Register</a>
+                <a href="payment.php?domain=<?= urlencode($customDomain) ?>&upload_id=<?= $id ?>" class="bg-green-600 text-white px-2 py-1 rounded inline-block mt-2">Register</a>
                 <?php endif; ?>
             </div>
             <?php endif; ?>

@@ -29,11 +29,12 @@ function stripeRequest(string $method, string $endpoint, array $params = []) {
 }
 
 function createCheckoutSession(string $customerEmail, string $priceId, string $successUrl, string $cancelUrl) {
+    $separator = (strpos($successUrl, '?') === false) ? '?' : '&';
     $params = [
         'mode' => 'subscription',
         'customer_email' => $customerEmail,
         'line_items' => [[ 'price' => $priceId, 'quantity' => 1 ]],
-        'success_url' => $successUrl . '?session_id={CHECKOUT_SESSION_ID}',
+        'success_url' => $successUrl . $separator . 'session_id={CHECKOUT_SESSION_ID}',
         'cancel_url' => $cancelUrl
     ];
     // Because Stripe expects line_items[] style fields, manually build query

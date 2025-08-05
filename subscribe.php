@@ -13,9 +13,17 @@ if (!$user) {
     die('User not found');
 }
 
-$priceId = getenv('STRIPE_PRICE_ID');
-$successUrl = (isset($_SERVER['HTTPS']) ? 'https://' : 'http://') . $_SERVER['HTTP_HOST'] . '/subscribe_success.php';
-$cancelUrl = (isset($_SERVER['HTTPS']) ? 'https://' : 'http://') . $_SERVER['HTTP_HOST'] . '/account.php';
+$domain = $_GET['domain'] ?? '';
+$uploadId = isset($_GET['upload_id']) ? (int)$_GET['upload_id'] : 0;
+$plan = $_GET['plan'] ?? 'monthly';
+if (!in_array($plan, ['monthly', 'yearly'])) {
+    $plan = 'monthly';
+}
+
+$priceId = getenv($plan === 'yearly' ? 'STRIPE_PRICE_ID_YEARLY' : 'STRIPE_PRICE_ID_MONTHLY');
+$baseUrl = (isset($_SERVER['HTTPS']) ? 'https://' : 'http://') . $_SERVER['HTTP_HOST'];
+$successUrl = $baseUrl . '/subscribe_success.php?domain=' . urlencode($domain) . '&upload_id=' . $uploadId;
+$cancelUrl = $baseUrl . '/payment.php?domain=' . urlencode($domain) . '&upload_id=' . $uploadId;
 $session = createCheckoutSession($user['email'], $priceId, $successUrl, $cancelUrl);
 if ($session && isset($session['url'])) {
     header('Location: ' . $session['url']);
