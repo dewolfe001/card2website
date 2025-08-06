@@ -1,6 +1,10 @@
 <?php
 function stripeRequest(string $method, string $endpoint, array $params = []) {
     $secret = getenv('STRIPE_SECRET_KEY');
+    // Fallback to defined constant if environment variable is not set
+    if (!$secret && defined('STRIPE_SECRET_KEY')) {
+        $secret = STRIPE_SECRET_KEY;
+    }
     if (!$secret) {
         return null;
     }
