@@ -143,31 +143,71 @@ function checkDomainAvailability(array $domains): array {
     return $result;
 }
 
-function registerDomain(string $domain): ?string {
-    $contact = [
-        'RegistrantFirstName' => getenv('NAMECHEAP_CONTACT_FIRST') ?: 'John',
-        'RegistrantLastName' => getenv('NAMECHEAP_CONTACT_LAST') ?: 'Doe',
-        'RegistrantAddress1' => getenv('NAMECHEAP_CONTACT_ADDRESS') ?: '123 Example St',
-        'RegistrantCity' => getenv('NAMECHEAP_CONTACT_CITY') ?: 'City',
-        'RegistrantStateProvince' => getenv('NAMECHEAP_CONTACT_STATE') ?: 'CA',
-        'RegistrantPostalCode' => getenv('NAMECHEAP_CONTACT_ZIP') ?: '00000',
-        'RegistrantCountry' => getenv('NAMECHEAP_CONTACT_COUNTRY') ?: 'US',
-        'RegistrantPhone' => getenv('NAMECHEAP_CONTACT_PHONE') ?: '+1.5555555555',
-        'RegistrantEmailAddress' => getenv('NAMECHEAP_CONTACT_EMAIL') ?: 'example@example.com'
+function registerDomain(string $domain, array $registrant): ?array {
+    $defaults = [
+        'FirstName' => getenv('NAMECHEAP_CONTACT_FIRST') ?: 'John',
+        'LastName' => getenv('NAMECHEAP_CONTACT_LAST') ?: 'Doe',
+        'Address1' => getenv('NAMECHEAP_CONTACT_ADDRESS') ?: '123 Example St',
+        'City' => getenv('NAMECHEAP_CONTACT_CITY') ?: 'City',
+        'StateProvince' => getenv('NAMECHEAP_CONTACT_STATE') ?: 'CA',
+        'PostalCode' => getenv('NAMECHEAP_CONTACT_ZIP') ?: '00000',
+        'Country' => getenv('NAMECHEAP_CONTACT_COUNTRY') ?: 'US',
+        'Phone' => getenv('NAMECHEAP_CONTACT_PHONE') ?: '+1.5555555555',
+        'EmailAddress' => getenv('NAMECHEAP_CONTACT_EMAIL') ?: 'example@example.com'
     ];
-    $params = array_merge([
+
+    $params = [
         'Command' => 'namecheap.domains.create',
         'DomainName' => $domain,
-        'Years' => 1
-    ], $contact);
+        'Years' => 1,
+        'AddFreeWhoisguard' => 'yes'
+    ];
+
+    $nameservers = getenv('NAMECHEAP_NAMESERVERS');
+    if ($nameservers) {
+        $params['Nameservers'] = $nameservers;
+    }
+
+    $params = array_merge($params, [
+        'RegistrantFirstName' => $registrant['first_name'] ?? '',
+        'RegistrantLastName' => $registrant['last_name'] ?? '',
+        'RegistrantAddress1' => $registrant['address1'] ?? '',
+        'RegistrantCity' => $registrant['city'] ?? '',
+        'RegistrantStateProvince' => $registrant['state'] ?? '',
+        'RegistrantPostalCode' => $registrant['postal_code'] ?? '',
+        'RegistrantCountry' => $registrant['country'] ?? '',
+        'RegistrantPhone' => $registrant['phone'] ?? '',
+        'RegistrantEmailAddress' => $registrant['email'] ?? ''
+    ]);
+
+    foreach (['Tech', 'Admin', 'AuxBilling'] as $type) {
+        $params[$type . 'FirstName'] = $defaults['FirstName'];
+        $params[$type . 'LastName'] = $defaults['LastName'];
+        $params[$type . 'Address1'] = $defaults['Address1'];
+        $params[$type . 'City'] = $defaults['City'];
+        $params[$type . 'StateProvince'] = $defaults['StateProvince'];
+        $params[$type . 'PostalCode'] = $defaults['PostalCode'];
+        $params[$type . 'Country'] = $defaults['Country'];
+        $params[$type . 'Phone'] = $defaults['Phone'];
+        $params[$type . 'EmailAddress'] = $defaults['EmailAddress'];
+    }
+
     $xml = namecheapApiRequest($params);
     if (!$xml || !isset($xml->CommandResponse->DomainCreateResult)) {
         return null;
     }
+
     $res = $xml->CommandResponse->DomainCreateResult;
-    if ((string)$res['Registered'] === 'true') {
-        return (string)$res['Domain'];
+    if ((string)$res['Registered'] !== 'true') {
+        return null;
     }
-    return null;
+
+    return [
+        'Domain' => (string)$res['Domain'],
+        'ChargedAmount' => (string)$res['ChargedAmount'],
+        'DomainID' => (string)$res['DomainID'],
+        'OrderID' => (string)$res['OrderID'],
+        'TransactionID' => (string)$res['TransactionID']
+    ];
 }
 ?>

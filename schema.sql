@@ -53,7 +53,20 @@ CREATE TABLE IF NOT EXISTS domain_registrations (
     domain VARCHAR(255) NOT NULL,
     registrar_id VARCHAR(255),
     purchase_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    user_id INT DEFAULT NULL
+    user_id INT DEFAULT NULL,
+    registrant_first_name VARCHAR(100),
+    registrant_last_name VARCHAR(100),
+    registrant_address1 VARCHAR(255),
+    registrant_city VARCHAR(100),
+    registrant_state VARCHAR(100),
+    registrant_postal_code VARCHAR(20),
+    registrant_country VARCHAR(2),
+    registrant_phone VARCHAR(50),
+    registrant_email VARCHAR(255),
+    domain_id VARCHAR(255),
+    order_id VARCHAR(255),
+    transaction_id VARCHAR(255),
+    charged_amount DECIMAL(10,4)
 );
 
 CREATE TABLE IF NOT EXISTS users (
