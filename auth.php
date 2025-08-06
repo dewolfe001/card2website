@@ -1,11 +1,15 @@
 <?php
 session_start();
 
-function require_login() {
+function require_login(bool $redirect = true): bool {
     if (!isset($_SESSION['user_id'])) {
-        header('Location: login.php');
-        exit;
+        if ($redirect) {
+            header('Location: login.php');
+            exit;
+        }
+        return false;
     }
+    return true;
 }
 
 function current_user_id() {
