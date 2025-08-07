@@ -279,38 +279,194 @@ function classifyNaics(string $text, ?string &$error = null): ?array {
     return $data;
 }
 
-function generateWebsiteFromData( $businessData, string $additional = '', ?string &$error = null) {
-    
-    if (is_array($businessData)) {
-        $businessData = json_encode($businessData);
-    }    
-    
-    
-    $system = 'You are an expert web developer and SEO specialist. You create high-quality, SEO-optimized one-page websites using modern web standards and best practices.';
-    $userContent = "Using the following business card data, create a professional one-page website with optimal technical SEO:\n\nBUSINESS DATA:\n" . $businessData . "\n\nADDITIONAL USER REQUIREMENTS AND SUPPLEMENTAL PROMPTS:\n" . $additional . "\n\nREQUIREMENTS:\n1. Use Tailwind CSS framework for styling\n2. Incorporate the exact colors from the business card\n3. Use web-safe fonts that match the business card font characteristics\n4. Include the logo description in appropriate placement\n5. Research and include the likely NAICS code for this business type\n6. Add 300-500 words of relevant, SEO-optimized content about the business/industry\n7. Implement technical SEO best practices:\n   - Proper HTML5 semantic structure\n   - Meta tags (title, description, keywords)\n   - Open Graph tags\n   - Schema.org markup for business info\n   - LD-JSON structured data\n8. Include contact information, business hours (estimated if not provided)\n9. Ensure mobile responsiveness\n10. Add appropriate alt text for images\n11. Include relevant internal anchor links\n12. Optimize for Core Web Vitals\n\nRespond ONLY with valid JSON in this format:\n{\n  \"html_code\": \"complete HTML source code as escaped string\",\n  \"seo_elements\": {\n    \"title_tag\": \"string\",\n    \"meta_description\": \"string\",\n    \"keywords\": [\"string\"],\n    \"naics_code\": \"string\",\n    \"naics_description\": \"string\"\n  },\n  \"content_summary\": {\n    \"word_count\": 0,\n    \"key_topics\": [\"string\"],\n    \"schema_types\": [\"string\"]\n  },\n  \"technical_features\": {\n    \"responsive\": true,\n    \"semantic_html\": true,\n    \"structured_data\": true,\n    \"accessibility\": true\n  }\n}";
+function generateWebsiteFromData($businessData, string $additional = '', ?string &$error = null) {
+    // Normalize $businessData to a JSON-ish string if an array/object is passed
+    if (is_array($businessData) || is_object($businessData)) {
+        $businessData = json_encode($businessData, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+    } else {
+        $businessData = (string) $businessData;
+    }
 
+    // --- System message: stronger guidance for A11y, CWV, schema ---
+    $system = <<<SYS
+You are a senior web developer, UX designer, and technical SEO specialist.
+You produce production-grade, responsive one-page websites using semantic HTML5, accessibility best practices (WCAG 2.2 AA), and Tailwind CSS.
+You rigorously apply structured data with multiple JSON-LD graphs to maximize rich results, especially for local businesses.
+You consider Core Web Vitals (LCP, CLS, INP), responsive images, and minimal blocking resources. Your code is clean, portable, and standards-compliant.
+Do not include explanations. Only follow the schema and produce valid JSON per the provided response schema.
+SYS;
+
+    // --- User prompt: mobile-first, large-screen polish, and HEAVY schema ---
+    $userContent = <<<USR
+Using the following business card data, create a professional one-page website that is excellent on small viewports and scales beautifully to large viewports.
+
+BUSINESS DATA:
+{$businessData}
+
+ADDITIONAL USER REQUIREMENTS AND SUPPLEMENTAL PROMPTS:
+{$additional}
+
+HARD REQUIREMENTS:
+1) Tailwind CSS for styling (use CDN). Use fluid, mobile-first layout, grid/flex utilities, fluid typography (clamp), and good color contrast.
+2) Use the exact brand colors from the business card (approximate if only descriptive, include CSS vars).
+3) Web-safe font stack approximating the business card’s type vibe; include proper line-height and readable sizes.
+4) Place logo or logo-description appropriately (top-left or centered on small screens; refined on large).
+5) Research and include the likely NAICS code and its description for this business type.
+6) Add 300–500 words of unique, relevant, SEO-optimized content covering services, value props, and local context.
+7) Technical SEO:
+   - Proper semantic structure: <header> (with skip link), <nav> (ARIA), <main>, <section>, <footer>, landmarks & headings.
+   - <title>, meta description, robots, canonical, Open Graph, Twitter Card.
+   - Internal anchor links (skip to sections).
+   - Preconnect to critical origins; preload hero image (if any) responsibly.
+8) Contact details, map link (if address), business hours (estimate if missing, note “Hours may vary” if inferred).
+9) Responsive images with width/height, alt text, and loading=lazy where appropriate (avoid lazy on LCP hero).
+10) Optimize for CWV: minimal inline critical CSS where appropriate, defer non-critical scripts.
+11) Accessibility: focus states, sufficient color contrast, aria-labels where needed.
+12) HEAVY SCHEMA. Include multiple JSON-LD graphs in a single <script type="application/ld+json"> using @graph:
+    - Use the most specific LocalBusiness subtype (e.g., Restaurant, ProfessionalService, MedicalBusiness, etc.) if applicable; else Organization.
+    - WebSite (with potentialAction SearchAction for sitelinks if a site search is plausible).
+    - Organization (or the LocalBusiness entity itself) with logo (ImageObject), sameAs links, address, phone, email.
+    - BreadcrumbList matching on-page anchors.
+    - FAQPage if you add 3–6 FAQs (encouraged if data supports).
+    - If photos exist, include ImageObject(s).
+    - If pricing or offers exist, include Offer where relevant.
+    - If you include a map URL, ensure it’s properly referenced.
+13) Return ONLY valid JSON. Do not wrap in backticks. HTML must be a single escaped string.
+
+OUTPUT FORMAT (STRICT):
+{
+  "html_code": "complete HTML source code as escaped string",
+  "seo_elements": {
+    "title_tag": "string",
+    "meta_description": "string",
+    "keywords": ["string"],
+    "naics_code": "string",
+    "naics_description": "string"
+  },
+  "content_summary": {
+    "word_count": 0,
+    "key_topics": ["string"],
+    "schema_types": ["string"]
+  },
+  "technical_features": {
+    "responsive": true,
+    "semantic_html": true,
+    "structured_data": true,
+    "accessibility": true
+  }
+}
+USR;
+
+    // --- Response JSON schema to force shape & validity ---
+    $responseSchema = [
+        "name" => "OnePageSiteResponse",
+        "strict" => true, // Enforce exact structure
+        "schema" => [
+            "type" => "object",
+            "additionalProperties" => false,
+            "required" => ["html_code","seo_elements","content_summary","technical_features"],
+            "properties" => [
+                "html_code" => [
+                    "type" => "string",
+                    "minLength" => 200
+                ],
+                "seo_elements" => [
+                    "type" => "object",
+                    "additionalProperties" => false,
+                    "required" => ["title_tag","meta_description","keywords","naics_code","naics_description"],
+                    "properties" => [
+                        "title_tag" => ["type" => "string", "minLength" => 10],
+                        "meta_description" => ["type" => "string", "minLength" => 50],
+                        "keywords" => [
+                            "type" => "array",
+                            "items" => ["type" => "string"],
+                            "minItems" => 3
+                        ],
+                        "naics_code" => ["type" => "string"],
+                        "naics_description" => ["type" => "string"]
+                    ]
+                ],
+                "content_summary" => [
+                    "type" => "object",
+                    "additionalProperties" => false,
+                    "required" => ["word_count","key_topics","schema_types"],
+                    "properties" => [
+                        "word_count" => ["type" => "integer", "minimum" => 200, "maximum" => 1000],
+                        "key_topics" => [
+                            "type" => "array",
+                            "items" => ["type" => "string"],
+                            "minItems" => 3
+                        ],
+                        "schema_types" => [
+                            "type" => "array",
+                            "items" => ["type" => "string"],
+                            "minItems" => 2
+                        ]
+                    ]
+                ],
+                "technical_features" => [
+                    "type" => "object",
+                    "additionalProperties" => false,
+                    "required" => ["responsive","semantic_html","structured_data","accessibility"],
+                    "properties" => [
+                        "responsive" => ["type" => "boolean"],
+                        "semantic_html" => ["type" => "boolean"],
+                        "structured_data" => ["type" => "boolean"],
+                        "accessibility" => ["type" => "boolean"]
+                    ]
+                ]
+            ]
+        ]
+    ];
+
+    // --- Build payload for your existing openaiChatRequest() wrapper ---
     $postData = [
-        'model' => 'gpt-4.1-mini',
+        'model' => 'gpt-5-mini',
         'messages' => [
             ['role' => 'system', 'content' => $system],
-            ['role' => 'user', 'content' => $userContent]
+            ['role' => 'user',   'content' => $userContent],
         ],
-        'max_tokens' => 4000,
-        'temperature' => 0.2
+        'temperature' => 0.2,
+        'top_p' => 1.0,
+        'presence_penalty' => 0.0,
+        'frequency_penalty' => 0.0,
+        'response_format' => [
+            'type' => 'json_schema',
+            'json_schema' => $responseSchema
+        ],
+        // Leave room for full HTML + JSON
+        'max_tokens' => 4500
     ];
 
     $response = openaiChatRequest($postData, $error);
     if (!$response) {
+        // $error should already be set by openaiChatRequest
         return null;
     }
 
     $json = json_decode($response, true);
     if (!$json || !isset($json['choices'][0]['message']['content'])) {
+        $error = 'Unexpected API response format.';
         return null;
     }
 
     $content = trim($json['choices'][0]['message']['content']);
-    $data = json_decode($content, true);
+
+    // Validate the returned JSON strictly; surface helpful error
+    try {
+        $data = json_decode($content, true, 512, JSON_THROW_ON_ERROR);
+    } catch (Throwable $e) {
+        $error = 'Model returned invalid JSON: ' . $e->getMessage();
+        // Optional: log $content for debugging
+        return null;
+    }
+
+    // Optional convenience: also include an unescaped HTML copy for direct writing
+    // (Uncomment if helpful in your pipeline)
+    // if (isset($data['html_code'])) {
+    //     $data['html_code_unescaped'] = stripcslashes($data['html_code']);
+    // }
+
     return is_array($data) ? $data : null;
 }
 
