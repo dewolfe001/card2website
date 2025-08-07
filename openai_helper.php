@@ -13,6 +13,8 @@ function openaiChatRequest(array $postData, ?string &$error = null): ?string {
         $error = 'Missing OpenAI API key';
         return null;
     }
+    
+    error_log("LINE 17 - ". print_r($postData, TRUE));
 
     $limit = getenv('OPENAI_RETRY_LIMIT');
     $limit = is_numeric($limit) ? (int)$limit : 3;
@@ -29,6 +31,9 @@ function openaiChatRequest(array $postData, ?string &$error = null): ?string {
         curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($postData));
 
         $response = curl_exec($ch);
+
+        error_log('RAW Response -- '.print_r($response, TRUE));
+
         if ($response === false) {
             $error = 'cURL error: ' . curl_error($ch);
         } else {
@@ -84,7 +89,9 @@ function sendImageToOpenAI(string $imagePath, ?string &$error = null) {
                     ['type' => 'image_url', 'image_url' => ['url' => 'data:' . $mimeType . ';base64,' . $imageData]]
                 ]
                 ]
-            ]
+            ],
+        'max_tokens'  => 2500,
+        // 'temperature' => 0.1,            
         ];
 
     $response = openaiChatRequest($postData, $error);
@@ -200,7 +207,7 @@ function analyzeBusinessCardStructured(string $imagePath, ?string &$error = null
     }
 
     $system = 'You are an expert at analyzing business cards and extracting structured data. You will receive a business card image and need to extract all relevant information in a specific JSON format.';
-    $userPrompt = "Please analyze this business card image and extract all relevant information. Parse the image to identify:\n\n1. All text content (names, titles, company, contact info)\n2. Color palette (primary and secondary colors in hex format)\n3. Font characteristics (serif/sans-serif, weight, style observations)\n4. Logo details (description, position, colors)\n5. Layout and design elements\n6. Industry/business type based on content\n\nRespond ONLY with valid JSON in this exact format:\n{\n  \"business_info\": {\n    \"company_name\": \"string\",\n    \"person_name\": \"string\",\n    \"title\": \"string\",\n    \"phone\": \"string\",\n    \"email\": \"string\",\n    \"website\": \"string\",\n    \"address\": {\n      \"street\": \"string\",\n      \"city\": \"string\",\n      \"state\": \"string\",\n      \"zip\": \"string\",\n      \"country\": \"string\"\n    },\n    \"industry\": \"string\",\n    \"services\": [\"string\"]\n  },\n  \"design_elements\": {\n    \"colors\": {\n      \"primary\": \"#hexcode\",\n      \"secondary\": \"#hexcode\",\n      \"accent\": \"#hexcode\",\n      \"text\": \"#hexcode\"\n    },\n    \"fonts\": {\n      \"primary_font_style\": \"serif|sans-serif|script|display\",\n      \"font_weight\": \"light|normal|bold\",\n      \"characteristics\": \"string description\"\n    },\n    \"logo\": {\n      \"present\": true|false,\n      \"description\": \"string\",\n      \"position\": \"string\",\n      \"style\": \"string\"\n    },\n    \"layout\": {\n      \"style\": \"modern|traditional|creative|minimal\",\n      \"orientation\": \"horizontal|vertical\"\n    }\n  }\n}";
+    $userPrompt = "Please analyze this business card image and extract all relevant information. Parse the image to identify:\n\n1. All text content (names, titles, company, contact info)\n2. Color palette (primary and secondary colors in hex format)\n3. Font characteristics (serif/sans-serif, weight, style observations)\n4. Logo details (description, position, colors). Extrapolate the logo from the business card and add a logo detail: base64 encoded cropped version of the logo availale for use by this application. \n5. Layout and design elements\n6. Industry/business type based on content\n\nRespond ONLY with valid JSON in this exact format:\n{\n  \"business_info\": {\n    \"company_name\": \"string\",\n    \"person_name\": \"string\",\n    \"title\": \"string\",\n    \"phone\": \"string\",\n    \"email\": \"string\",\n    \"website\": \"string\",\n    \"address\": {\n      \"street\": \"string\",\n      \"city\": \"string\",\n      \"state\": \"string\",\n      \"zip\": \"string\",\n      \"country\": \"string\"\n    },\n    \"industry\": \"string\",\n    \"services\": [\"string\"]\n  },\n  \"design_elements\": {\n    \"colors\": {\n      \"primary\": \"#hexcode\",\n      \"secondary\": \"#hexcode\",\n      \"accent\": \"#hexcode\",\n      \"text\": \"#hexcode\"\n    },\n    \"fonts\": {\n      \"primary_font_style\": \"serif|sans-serif|script|display\",\n      \"font_weight\": \"light|normal|bold\",\n      \"characteristics\": \"string description\"\n    },\n    \"logo\": {\n      \"present\": true|false,\n      \"description\": \"string\",\n      \"position\": \"string\",\n      \"style\": \"string\"\n      \"base64\": \"string\"\n     },\n    \"layout\": {\n      \"style\": \"modern|traditional|creative|minimal\",\n      \"orientation\": \"horizontal|vertical\"\n    }\n  }\n}";
 
     $postData = [
         'model' => 'gpt-4.1-mini',
@@ -211,8 +218,8 @@ function analyzeBusinessCardStructured(string $imagePath, ?string &$error = null
                 ['type' => 'image_url', 'image_url' => ['url' => 'data:image/jpeg;base64,' . $imageData]]
             ]]
         ],
-        'max_tokens' => 1500,
-        'temperature' => 0.1
+        'max_tokens' => 1600,
+        // 'temperature' => 0.1
     ];
 
     $response = openaiChatRequest($postData, $error);
@@ -230,14 +237,174 @@ function analyzeBusinessCardStructured(string $imagePath, ?string &$error = null
     return is_array($data) ? $data : null;
 }
 
+// the preamble
+function generateMarketingOpenAI(string $prompt, ?string &$error = null) {
+
+    $postData = [
+        'model' => 'gpt-4.1-mini',
+        'messages' => [
+            [
+            "role" => "system",
+            "content" => "You are an expert marketer who knows how to deliver excellent communications that rank well in search engines; and attract users to engage with the subject matter. Strip out the markdown code to make the text more clear. Strip the questions out of the user prompt to have a solid body of information to work with."
+            ],            
+            
+            ['role' => 'user', 'content' => $prompt]
+        ],
+        'max_tokens' => 1200,
+        // 'temperature' => 0.2
+    ];
+
+    $response = openaiChatRequest($postData, $error);
+    if (!$response) {
+        return null;
+    }
+
+    $json = json_decode($response, true);
+    if (!$json || !isset($json['choices'][0]['message']['content'])) {
+        return null;
+    }
+
+    return trim($json['choices'][0]['message']['content']);
+}
+
+/**
+ * Generate a photorealistic image via OpenAI’s Images API,
+ * save it to disk and return its path & URL.
+ *
+ * @param  string      $prompt  Your natural‑language description.
+ * @param  string      $size    Desired image size (e.g. "256x256", "512x512", "1024x1024").
+ * @param  string|null &$error  If anything goes wrong, this will be populated.
+ * @return array|null          ['file_path'=>string, 'url'=>string] or null on failure.
+ */
+function generateBusinessCardImage(string $prompt, string $size = '1024x1024', ?string &$error = null): ?array
+{
+    // 1) build the image prompt
+    $fullPrompt = sprintf(
+        'Make an image to match the following description. Make it photo‑realistic with great lighting—like it’s the output of a professional photographer. Do not display any text in the image. Avoid displaying a business card in the image. Keep to the theme of this prompt: "%s"',
+        trim($prompt)
+    );
+
+    // 2) call the Images API (expects you have a wrapper like openaiImageRequest)
+    $postData = [
+        // Use the DALL·E model you have access to
+        'model'           => 'dall-e-3',
+        'prompt'          => $fullPrompt,
+        'n'               => 1,
+        'size'            => $size,
+        'response_format' => 'b64_json',
+    ];
+    
+    error_log("Working with ".print_r($postData, TRUE));
+    
+    
+    $response = openaiImageRequest($postData, $error);
+    if (!$response) {
+        return null;
+    }
+
+    // 3) parse & validate
+    $json = json_decode($response, true);
+    if (
+        ! $json ||
+        ! isset($json['data'][0]['b64_json'])
+    ) {
+        error_log(print_r($response, TRUE));
+        $error = 'Unexpected response format from OpenAI Images API.';
+        return null;
+    }
+    $b64 = $json['data'][0]['b64_json'];
+
+    // 4) decode and save
+    $imageData = base64_decode($b64);
+    if ($imageData === false) {
+        $error = 'Failed to decode base64 image data.';
+        return null;
+    }
+
+    // choose your storage directory
+    $uploadDir = __DIR__ . '/generated_images';
+    if (! is_dir($uploadDir) && ! mkdir($uploadDir, 0755, true)) {
+        $error = 'Could not create directory for saving images.';
+        return null;
+    }
+
+    $fileName = uniqid('bc_img_') . '.png';
+    $filePath = $uploadDir . '/' . $fileName;
+
+    if (file_put_contents($filePath, $imageData) === false) {
+        $error = 'Failed to write image file to disk.';
+        return null;
+    }
+
+    // 5) expose a public URL for your app to include in its HTML output
+    // adjust this base URL to match your server setup!
+    $publicBaseUrl = 'https://businesscard2website.com/generated_images';
+
+    return [
+        'file_path' => $filePath,
+        'url'       => $publicBaseUrl . '/' . $fileName,
+    ];
+}
+
+/**
+ * Send a JSON request to OpenAI’s Images endpoint and return the raw response.
+ */
+function openaiImageRequest(array $postData, ?string &$error = null): ?string
+{
+    $apiKey = getenv('OPENAI_API_KEY');
+    if (empty($apiKey)) {
+        $error = 'Missing OPENAI_API_KEY';
+        return null;
+    }
+
+    $ch = curl_init('https://api.openai.com/v1/images/generations');
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_HTTPHEADER     => [
+            'Authorization: Bearer ' . $apiKey,
+            'Content-Type: application/json',
+        ],
+        CURLOPT_POST           => true,
+        CURLOPT_POSTFIELDS     => json_encode($postData),
+    ]);
+
+    $resp = curl_exec($ch);
+    if (curl_errno($ch)) {
+        $error = 'cURL error: ' . curl_error($ch);
+        
+        error_log("Image error - ".print_r($error, TRUE));
+        curl_close($ch);
+        return null;
+    }
+
+    $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    error_log("LINE 380 - Resp - ".print_r($resp, TRUE));
+    
+    if ($status !== 200) {
+        $data = json_decode($resp, true);
+        $error = $data['error']['message'] ?? "Unexpected HTTP status $status";
+        return null;
+    }
+
+    return $resp;
+}
+
 function generateHtmlWithOpenAI(string $prompt, ?string &$error = null) {
 
     $postData = [
         'model' => 'gpt-4.1-mini',
         'messages' => [
+            [
+            "role" => "system",
+            "content" => "You are an expert HTML designer who specialized in Tailwind design. You are are also an expert marketer who knows how to deliver excellent designs that rank well in search engines; and attract users to engage with the subject of the web design."
+            ],            
+            
             ['role' => 'user', 'content' => $prompt]
         ],
-        'max_tokens' => 1500
+        'max_tokens' => 1500,
+        // 'temperature' => 1
     ];
 
     $response = openaiChatRequest($postData, $error);
@@ -278,6 +445,8 @@ function classifyNaics(string $text, ?string &$error = null): ?array {
     }
     return $data;
 }
+
+// The Big Kahuna...
 
 function generateWebsiteFromData($businessData, string $additional = '', ?string &$error = null) {
     // Normalize $businessData to a JSON-ish string if an array/object is passed
@@ -426,7 +595,7 @@ USR;
             ['role' => 'system', 'content' => $system],
             ['role' => 'user',   'content' => $userContent],
         ],
-        'temperature' => 0.2,
+        // 'temperature' => 0.2,
         'top_p' => 1.0,
         'presence_penalty' => 0.0,
         'frequency_penalty' => 0.0,
@@ -435,7 +604,7 @@ USR;
             'json_schema' => $responseSchema
         ],
         // Leave room for full HTML + JSON
-        'max_tokens' => 4500
+        'max_completion_tokens' => 15000
     ];
 
     $response = openaiChatRequest($postData, $error);
@@ -470,6 +639,43 @@ USR;
     return is_array($data) ? $data : null;
 }
 
+
+
+// The Old Kahuna...
+function GPT4generateWebsiteFromData( $businessData, string $additional = '', ?string &$error = null) {
+    
+    if (is_array($businessData)) {
+        $businessData = json_encode($businessData);
+    }    
+    
+    
+    $system = 'You are an expert web developer and SEO specialist. You create high-quality, SEO-optimized one-page websites using modern web standards and best practices.';
+    $userContent = "Using the following business card data, create a professional one-page website with optimal technical SEO:\n\nBUSINESS DATA:\n" . $businessData . "\n\nADDITIONAL USER REQUIREMENTS AND SUPPLEMENTAL PROMPTS:\n" . $additional . "\n\nREQUIREMENTS:\n1. Use Tailwind CSS framework for styling\n2. Incorporate the exact colors from the business card\n3. Use web-safe fonts that match the business card font characteristics\n4. Include the logo description in appropriate placement\n5. Research and include the likely NAICS code for this business type\n6. Add 300-500 words of relevant, SEO-optimized content about the business/industry\n7. Implement technical SEO best practices:\n   - Proper HTML5 semantic structure\n   - Meta tags (title, description, keywords)\n   - Open Graph tags\n   - Schema.org markup for business info\n   - LD-JSON structured data\n8. Include contact information, business hours (estimated if not provided)\n9. Ensure mobile responsiveness\n10. Add appropriate alt text for images\n11. Include relevant internal anchor links\n12. Optimize for Core Web Vitals\n\nRespond ONLY with valid JSON in this format:\n{\n  \"html_code\": \"complete HTML source code as escaped string\",\n  \"seo_elements\": {\n    \"title_tag\": \"string\",\n    \"meta_description\": \"string\",\n    \"keywords\": [\"string\"],\n    \"naics_code\": \"string\",\n    \"naics_description\": \"string\"\n  },\n  \"content_summary\": {\n    \"word_count\": 0,\n    \"key_topics\": [\"string\"],\n    \"schema_types\": [\"string\"]\n  },\n  \"technical_features\": {\n    \"responsive\": true,\n    \"semantic_html\": true,\n    \"structured_data\": true,\n    \"accessibility\": true\n  }\n}";
+
+    $postData = [
+        'model' => 'gpt-4.1-mini',
+        'messages' => [
+            ['role' => 'system', 'content' => $system],
+            ['role' => 'user', 'content' => $userContent]
+        ],
+        'max_tokens' => 4000,
+        // 'temperature' => 0.2
+    ];
+
+    $response = openaiChatRequest($postData, $error);
+    if (!$response) {
+        return null;
+    }
+
+    $json = json_decode($response, true);
+    if (!$json || !isset($json['choices'][0]['message']['content'])) {
+        return null;
+    }
+
+    $content = trim($json['choices'][0]['message']['content']);
+    $data = json_decode($content, true);
+    return is_array($data) ? $data : null;
+}
 
 function generateFromImages( $businessData, $imageUrl, $id ) {
 
@@ -511,59 +717,6 @@ function generateFromImages( $businessData, $imageUrl, $id ) {
     curl_close($ch);
     
     return $response;
-}
-
-
-// helper code
-
-function getInputTypeAndAttributes($value, $fieldName) {
-    // Trim whitespace
-    $value = trim($value);
-    
-    // Default return values
-    $inputType = 'text';
-    $attributes = '';
-    
-    // Hex color pattern (#RRGGBB)
-    if (preg_match('/^#[0-9A-Fa-f]{6}$/', $value)) {
-        $inputType = 'color';
-    }
-    // Phone number patterns
-    elseif (preg_match('/^(\+?1[-.\s]?)?\(?[0-9]{3}\)?[-.\s]?[0-9]{3}[-.\s]?[0-9]{4}$/', $value)) {
-        $inputType = 'tel';
-        $attributes = ' pattern="[0-9\+\-\.\s\(\)]+" placeholder="Phone number"';
-    }
-    // Email pattern
-    elseif (filter_var($value, FILTER_VALIDATE_EMAIL)) {
-        $inputType = 'email';
-        $attributes = ' placeholder="Email address"';
-    }
-    // Website/URL pattern
-    elseif (preg_match('/^(https?:\/\/)?(www\.)?[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z]{2,})+([\/\w\-\.]*)*\/?$/', $value)) {
-        $inputType = 'url';
-        $attributes = ' placeholder="Website URL"';
-    }
-    // Address-like pattern (contains common address keywords and numbers)
-    elseif (preg_match('/\d+.*(?:street|st|avenue|ave|road|rd|drive|dr|lane|ln|boulevard|blvd|way|court|ct|place|pl)\b/i', $value)) {
-        $inputType = 'text';
-        $attributes = ' placeholder="Street address"';
-    }
-    // Field name-based detection for common address fields
-    elseif (preg_match('/^(address|street|city|state|zip|zipcode|postal|country)$/i', $fieldName)) {
-        if (preg_match('/^(zip|zipcode|postal)$/i', $fieldName)) {
-            $attributes = ' pattern="[0-9A-Za-z\s\-]+" placeholder="Postal/ZIP code"';
-        } elseif (preg_match('/^(state)$/i', $fieldName)) {
-            $attributes = ' placeholder="State/Province"';
-        } elseif (preg_match('/^(country)$/i', $fieldName)) {
-            $attributes = ' placeholder="Country"';
-        } elseif (preg_match('/^(city)$/i', $fieldName)) {
-            $attributes = ' placeholder="City"';
-        } else {
-            $attributes = ' placeholder="Address"';
-        }
-    }
-    
-    return ['type' => $inputType, 'attributes' => $attributes];
 }
 
 
