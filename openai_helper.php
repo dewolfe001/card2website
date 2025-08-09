@@ -721,12 +721,25 @@ USR;
     ];
 
     // --- Build payload for your existing openaiChatRequest() wrapper ---
+
+    $messages = [
+        ['role' => 'system', 'content' => $system]
+    ];
+    if ($layoutImageUrl) {
+        $messages[] = [
+            'role' => 'user',
+            'content' => [
+                ['type' => 'text', 'text' => $userContent],
+                ['type' => 'input_image', 'image_url' => $layoutImageUrl]
+            ]
+        ];
+    } else {
+        $messages[] = ['role' => 'user', 'content' => $userContent];
+    }
+    
     $postData = [
         'model' => 'gpt-5-mini',
-        'messages' => [
-            ['role' => 'system', 'content' => $system],
-            ['role' => 'user',   'content' => $userContent],
-        ],
+        'messages' => $messages,
         // 'temperature' => 0.2,
         'top_p' => 1.0,
         'presence_penalty' => 0.0,
