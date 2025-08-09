@@ -10,6 +10,9 @@ require 'config.php';
 require_once 'openai_helper.php';
 require_once 'gemini_helper.php';
 
+$baseUrl = (isset($_SERVER['HTTPS']) ? 'https://' : 'http://') . $_SERVER['HTTP_HOST'];
+
+define('BASEURL', $baseUrl);
 
 $additional_incr = 1;
 
@@ -162,7 +165,7 @@ if (sizeof($uploadedFiles) > 0) {
         $imageUrl = 'https://businesscard2website.com/uploads/site_images/'.$id.'/'.$uploadFile;
         $jobFile = $asyncDir . "{$id}_imginfo_{$idx}.json";
         $analysisJobs[$jobFile] = $imageUrl;
-        $cmd = "curl -s 'http://localhost/async_task.php?action=analyze_image&id={$id}&img=" . urlencode($imageUrl) . "&idx={$idx}' > /dev/null 2>&1 &";
+        $cmd = "curl -s '".BASEURL."/async_task.php?action=analyze_image&id={$id}&img=" . urlencode($imageUrl) . "&idx={$idx}' > /dev/null 2>&1 &";
         exec($cmd);
     }
 
@@ -258,7 +261,7 @@ try {
     foreach ($reviewQueries as $idx => $query) {
         $file = $asyncDir . "{$id}_reviews_{$idx}.json";
         $reviewJobs[$file] = $query;
-        $cmd = "curl -s 'http://localhost/async_task.php?action=fetch_reviews&id={$id}&query=" . urlencode($query) . "&idx={$idx}' > /dev/null 2>&1 &";
+        $cmd = "curl -s '".BASEURL."/async_task.php?action=fetch_reviews&id={$id}&query=" . urlencode($query) . "&idx={$idx}' > /dev/null 2>&1 &";
         exec($cmd);
     }
 
@@ -324,7 +327,7 @@ $imageJobs = [];
 foreach ($imageTasks as $type => $size) {
     $file = $asyncDir . "{$id}_{$type}.json";
     $imageJobs[$file] = $type;
-    $cmd = "curl -s 'http://localhost/async_task.php?action=generate_image&id={$id}&type={$type}&size={$size}' > /dev/null 2>&1 &";
+    $cmd = "curl -s '".BASEURL."/async_task.php?action=generate_image&id={$id}&type={$type}&size={$size}' > /dev/null 2>&1 &";
     exec($cmd);
 }
 
@@ -352,10 +355,10 @@ if ($main_image) {
     $additional .= $additional_incr++.". - This supplied images should be added into the web design and put in an appropriate spot in the page near the top. Here's the JSON encoded information about this image's file_path and its url- ".json_encode($main_image)." \n";
 }
 if ($side_image) {
-    $additional .= $additional_incr++.". - This supplied images should be added into the web design and put in an appropriate spot in the page on the right hand side with text to the left of the image in a two-column set up that stacks vertically on tablet portrait views and smaller viewports. When building the HTML code, place the image as a background image for the right hand side so that the 'background: cover;' CSS is used the display that image but limit how much white space there is on the page. Here's the JSON encoded information about this image's file_path and its url- ".json_encode($side_image)." \n";
+    $additional .= $additional_incr++.". - This supplied images should be added into the web design and put in an appropriate spot in the page on the right hand side with text to the left of the image in a two-column set up that stacks vertically on tablet portrait views and smaller viewports. When building the HTML code, place the image as a background image for the right hand side. Use the 'background: cover; height: 100%; background-position: top' CSS for the display that image but limit how much white space there is on the page. Here's the JSON encoded information about this image's file_path and its url- ".json_encode($side_image)." \n";
 }
 if ($square_image) {
-    $additional .= $additional_incr++.". - This supplied images should be added into the web design and put low on the page, beside the contact information at the bottom. It should be added as a 'background: contain' CSS element, to limit how much white space ends up in the HTML display. Here's the JSON encoded information about this image's file_path and its url - ".json_encode($square_image)." \n";
+    $additional .= $additional_incr++.". - This supplied images should be added into the web design and put low on the page, beside the contact information at the bottom. It should be added as 'background: cover; height: 100%; background-position: top' CSS styling, to limit how much white space ends up in the HTML display. Here's the JSON encoded information about this image's file_path and its url - ".json_encode($square_image)." \n";
 }
 
 $result = generateWebsiteFromData($businessData, $additional);
@@ -652,5 +655,3 @@ function saveImagesFromB64JsonResponse(array $apiResponse, string $saveDirAbsolu
 
     return $results;
 }
-
-    
