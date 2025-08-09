@@ -144,10 +144,41 @@ else {
 
 $img_info = [];
 
+// ensure async working directory and context file exist
+$asyncDir = __DIR__ . '/async_tasks/';
+if (!is_dir($asyncDir)) {
+    mkdir($asyncDir, 0777, true);
+}
+$contextPath = $asyncDir . $id . '_context.json';
+file_put_contents($contextPath, json_encode([
+    'business_data' => $businessData,
+    'additional' => $additional
+]));
+
+// dispatch image analysis tasks concurrently
 if (sizeof($uploadedFiles) > 0) {
-    foreach ($uploadedFiles as $uploadFile) {
+    $analysisJobs = [];
+    foreach ($uploadedFiles as $idx => $uploadFile) {
         $imageUrl = 'https://businesscard2website.com/uploads/site_images/'.$id.'/'.$uploadFile;
-        $img_info[$imageUrl] = generateFromImages( $businessData, $imageUrl, $id );
+        $jobFile = $asyncDir . "{$id}_imginfo_{$idx}.json";
+        $analysisJobs[$jobFile] = $imageUrl;
+        $cmd = "curl -s 'http://localhost/async_task.php?action=analyze_image&id={$id}&img=" . urlencode($imageUrl) . "&idx={$idx}' > /dev/null 2>&1 &";
+        exec($cmd);
+    }
+
+    // poll for completion of analysis tasks
+    $start = time();
+    $timeout = 120; // seconds
+    while (time() - $start < $timeout && count($analysisJobs) > 0) {
+        foreach ($analysisJobs as $file => $url) {
+            if (file_exists($file)) {
+                $img_info[$url] = file_get_contents($file);
+                unset($analysisJobs[$file]);
+            }
+        }
+        if (count($analysisJobs) > 0) {
+            usleep(500000); // wait 0.5 sec before next poll
+        }
     }
 }
 
@@ -158,77 +189,47 @@ $businessArray = json_decode($businessData);
 $searchapi = getenv('SEARCHAPI_KEY');
 $reviewsFetcher = new GoogleMapsReviewsFetcherCurl($searchapi);
 
+// Reviews will be fetched asynchronously
+$reviews = [];
+$searchapi_text = [];
+
 try {
     error_log("154 - ".print_r($businessArray, TRUE));
     error_log("155 - ".print_r($businessData, TRUE));
-    error_log("156 - ".print_r($businessInfo, TRUE));    
+    error_log("156 - ".print_r($businessInfo, TRUE));
 
-    $reviews = array();
+    // build list of review queries
+    $reviewQueries = [];
     foreach ($businessInfo as $key => $info) {
         if ($info['type'] == 'tel') {
             if ($info['attributes'] == ' placeholder="Phone numbers"') {
-
-                // Suppose $businessArray is your stdClass from the database:
-                $raw = $businessArray->openai_text;              // a string of JSON
-                $data = json_decode($raw);                       // now a stdClass
-                
-                if (json_last_error() !== JSON_ERROR_NONE) {
-                    throw new RuntimeException('Invalid JSON in openai_text: ' . json_last_error_msg());
-                }
-                
-                // Make sure we actually have a phone object
-                if (isset($data->phone) && is_object($data->phone)) {
+                $raw = $businessArray->openai_text;
+                $data = json_decode($raw);
+                if (json_last_error() === JSON_ERROR_NONE && isset($data->phone) && is_object($data->phone)) {
                     foreach (get_object_vars($data->phone) as $label => $number) {
-                        $new_reviews = $reviewsFetcher->getReviewsByQuery($number);
-                    
-                        if (is_array($new_reviews)) {
-                            // merge the new reviews onto the end of $allReviews
-                            $reviews = array_merge($new_reviews, $reviews);
-                        }  
+                        $reviewQueries[] = $number;
                     }
-                } else {
-                    echo "No phone data to iterate.\n";
                 }
-
-                foreach ($businessArray['openai_text']->phone as $num) {
-                    $phone = $businessArray[$key];
-                    $reviews = $reviewsFetcher->getReviewsByQuery($phone);
-                }
-            }
-            else {
-                error_log("199 - ".print_r($businessArray ,TRUE));
- 
+            } else {
                 if (is_array($businessArray)) {
-                    $phone = $businessArray[$key];                    
-                }   
-                else {
-
+                    $phone = $businessArray[$key];
+                } else {
                     $decodedArr = json_decode($businessArray, true);
-                    if (json_last_error() === JSON_ERROR_NONE && isset($decodedArr['phone'])) {
-                        $phone = $decodedArr['phone'];
-                    } else {
-                        $phone = null;  // or handle missing/invalid JSON
-                    }
-                    
+                    $phone = ($decodedArr && isset($decodedArr['phone'])) ? $decodedArr['phone'] : null;
                 }
-                
-                $reviews = $reviewsFetcher->getReviewsByQuery($phone);
-                break;                
+                if ($phone) {
+                    $reviewQueries[] = $phone;
+                }
             }
         }
     }
-    
-    if ((sizeof($reviews)) < 1) {
-        // try with the address
-        
+
+    if (empty($reviewQueries)) {
         if (is_object($businessArray)) {
-            // turn it into an array
-            $businessTemp = (array) $businessArray->openai_text;
-        }
-        else {
+            $businessTemp = (array)$businessArray->openai_text;
+        } else {
             $businessTemp = $businessArray;
         }
-
         $addr_ele = array();
         foreach ($businessInfo as $key => $info) {
             if ($info['attributes'] == ' placeholder="Address"') {
@@ -236,49 +237,66 @@ try {
             }
             if ($info['attributes'] == ' placeholder="City"') {
                 $addr_ele[1] = $businessTemp[$key];
-            }            
+            }
             if ($info['attributes'] == ' placeholder="State/Province"') {
                 $addr_ele[2] = $businessTemp[$key];
             }
             if ($info['attributes'] == ' placeholder="Country"') {
                 $addr_ele[3] = $businessTemp[$key];
-            }            
-            if ($info['attributes'] == ' pattern="[0-9A-Za-z\s\-]+" placeholder="Postal/ZIP code"') {
+            }
+            if ($info['attributes'] == ' pattern="[0-9A-Za-z\\s\\-]+" placeholder="Postal/ZIP code"') {
                 $addr_ele[4] = $businessTemp[$key];
-            }            
-        }    
-
-        if (sizeof($addr_ele) > 2) {
-            $address = implode(' ', $addr_ele);
-            $reviews = $reviewsFetcher->getReviewsByQuery($address);
+            }
         }
-        
+        if (sizeof($addr_ele) > 2) {
+            $reviewQueries[] = implode(' ', $addr_ele);
+        }
     }
-    
-    error_log("Reviews for ".print_r($reviews, TRUE));
-    
-    $searchapi_text = array();
+
+    // fire off review requests concurrently
+    $reviewJobs = [];
+    foreach ($reviewQueries as $idx => $query) {
+        $file = $asyncDir . "{$id}_reviews_{$idx}.json";
+        $reviewJobs[$file] = $query;
+        $cmd = "curl -s 'http://localhost/async_task.php?action=fetch_reviews&id={$id}&query=" . urlencode($query) . "&idx={$idx}' > /dev/null 2>&1 &";
+        exec($cmd);
+    }
+
+    // poll for results
+    if (count($reviewJobs) > 0) {
+        $start = time();
+        $timeout = 120;
+        while (time() - $start < $timeout && count($reviewJobs) > 0) {
+            foreach ($reviewJobs as $file => $query) {
+                if (file_exists($file)) {
+                    $data = json_decode(file_get_contents($file), true);
+                    if (is_array($data)) {
+                        $reviews = array_merge($reviews, $data);
+                    }
+                    unset($reviewJobs[$file]);
+                }
+            }
+            if (count($reviewJobs) > 0) {
+                usleep(500000);
+            }
+        }
+    }
+
     foreach ($reviews as $review) {
-        $rating = floatval($review['rating']);
+        $rating = floatval($review['rating'] ?? 0);
         if ($rating > 3.75) {
             $searchapi_text[] = $review['snippet'];
         }
     }
-    
-    // form this into part of the prompt
 
     if (sizeof($searchapi_text) > 0) {
-        $searchapi_prompt = 'Use the information from these reviews to create informative and positive text about the business and what it does. Use this informative text as part of the website build, to create creative copy that would let the website visistor know what the business does. Here is the review text in JSON format: '.json_encode($searchapi_text);
-
-        // searchapi information
+        $searchapi_prompt = 'Use the information from these reviews to create informative and positive text about the business and what it does. Use this informative text as part of the website build, to create creative copy that would let the website visitor know what the business does. Here is the review text in JSON format: '.json_encode($searchapi_text);
         $additional .= $additional_incr++.". - ".$searchapi_prompt;
     }
-    
+
 } catch (Exception $e) {
-    error_log( "Error: " . $e->getMessage() );
+    error_log("Error: " . $e->getMessage());
 }
-
-
 
 // image information
 foreach ( $img_info as $img_u => $img_t ) {
@@ -292,103 +310,53 @@ error_log("Prompt - businessData ".print_r($businessData, TRUE)."\n --- \n".prin
 // get the images 
 
 $img_prompt = generateMarketingOpenAI($businessData, $additional);
+$context = json_decode(file_get_contents($contextPath), true);
+$context['img_prompt'] = $img_prompt;
+file_put_contents($contextPath, json_encode($context));
 
-// fetch three supporting images - right side, tall and square 
-
-
-/**
- * Generate a photorealistic image via OpenAI’s Images API,
- * save it to disk and return its path & URL.
- *
- * @param  string      $prompt  Your natural‑language description.
- * @param  string      $size    Desired image size (e.g. "256x256", "512x512", "1024x1024").
- * @param  string|null &$error  If anything goes wrong, this will be populated.
- * @return array|null          ['file_path'=>string, 'url'=>string] or null on failure.
- */
- 
- 
-$main_img_prompt = "Make an image that will work great above the fold. Size it  1024x1024 ".$img_prompt;
-
-// $main_image = generateBusinessCardImageGemini($main_img_prompt);
-
-/*
-$main_image = generatePolicedImage(
-    $main_img_prompt,
-    [
-        'size' => '1024x1024',
-        'max_tries' => 3,            // try Gemini up to 3 times
-        'fallback_openai' => true    // optional safety net
-    ],
-    $err
-);
-*/
-
-$main_image = generateBusinessCardImage($main_img_prompt, '1024x1024', $err);
-
-
-if (!$main_image) {
-    error_log("Image generation failed: " . $err);
-    // handle gracefully (placeholder image, UI message, etc.)
-} else {
-    $imageUrl = $main_image['url'];
-    // Use this in your generated HTML
+// fire image generation requests concurrently
+$imageTasks = [
+    'main'   => '1024x1024',
+    'side'   => '1024x1536',
+    'square' => '1024x1024'
+];
+$imageJobs = [];
+foreach ($imageTasks as $type => $size) {
+    $file = $asyncDir . "{$id}_{$type}.json";
+    $imageJobs[$file] = $type;
+    $cmd = "curl -s 'http://localhost/async_task.php?action=generate_image&id={$id}&type={$type}&size={$size}' > /dev/null 2>&1 &";
+    exec($cmd);
 }
 
-$additional .= $additional_incr++.". - This supplied images should be added into the web design and put in an appropriate spot in the page near the top. Here's the JSON encoded information about this image's file_path and its url- ".json_encode($main_image)." \n";    
-
-$side_img_prompt = "Make an image that fit to the side of the website content. Size it 1024x1536 ".$img_prompt;
-// $side_image = generateBusinessCardImageGemini($side_img_prompt);
-
-/*
-$side_image = generatePolicedImage(
-    $side_img_prompt,
-    [
-        'size' => '1024x1536',
-        'max_tries' => 3,            // try Gemini up to 3 times
-        'fallback_openai' => true    // optional safety net
-    ],
-    $err
-);*/
-
-$side_image = generateBusinessCardImage($side_img_prompt, '1024x1536', $err);
-
-if (!$side_image) {
-    error_log("Image generation failed: " . $err);
-    // handle gracefully (placeholder image, UI message, etc.)
-} else {
-    $imageUrl = $side_image['url'];
-    // Use this in your generated HTML
+// poll for images
+$images = [];
+$start = time();
+$timeout = 300;
+while (time() - $start < $timeout && count($imageJobs) > 0) {
+    foreach ($imageJobs as $file => $type) {
+        if (file_exists($file)) {
+            $images[$type] = json_decode(file_get_contents($file), true);
+            unset($imageJobs[$file]);
+        }
+    }
+    if (count($imageJobs) > 0) {
+        usleep(500000);
+    }
 }
 
-$additional .= $additional_incr++.". - This supplied images should be added into the web design and put in an appropriate spot in the page on the right hand side with text to the left of the image in a two-column set up that stacks vertically on tablet portrait views and smaller viewports. When building the HTML code, place the image as a background image for the right hand side so that the 'background: cover;' CSS is used the display that image but limit how much white space there is on the page. Here's the JSON encoded information about this image's file_path and its url- ".json_encode($side_image)." \n";    
+$main_image = $images['main'] ?? null;
+$side_image = $images['side'] ?? null;
+$square_image = $images['square'] ?? null;
 
-$square_img_prompt = "Make an image that will work great low on the web page. Size it  1024x1024 ".$img_prompt;
-// $square_image = generateBusinessCardImageGemini($square_img_prompt);
-
-/*
-$square_image = generatePolicedImage(
-    $square_img_prompt,
-    [
-        'size' => '1024x1024',
-        'max_tries' => 3,            // try Gemini up to 3 times
-        'fallback_openai' => true    // optional safety net
-    ],
-    $err
-);
-*/
-
-$square_image = generateBusinessCardImage($square_img_prompt, '1024x1536', $err);
-
-if (!$square_image) {
-    error_log("Image generation failed: " . $err);
-    // handle gracefully (placeholder image, UI message, etc.)
-} else {
-    $imageUrl = $square_image['url'];
-    // Use this in your generated HTML
+if ($main_image) {
+    $additional .= $additional_incr++.". - This supplied images should be added into the web design and put in an appropriate spot in the page near the top. Here's the JSON encoded information about this image's file_path and its url- ".json_encode($main_image)." \n";
 }
-
-$additional .= $additional_incr++.". - This supplied images should be added into the web design and put low on the page, beside the contact information at the bottom. It should be added as a 'background: contain' CSS element, to limit how much white space ends up in the HTML display. Here's the JSON encoded information about this image's file_path and its url - ".json_encode($square_image)." \n";    
-
+if ($side_image) {
+    $additional .= $additional_incr++.". - This supplied images should be added into the web design and put in an appropriate spot in the page on the right hand side with text to the left of the image in a two-column set up that stacks vertically on tablet portrait views and smaller viewports. When building the HTML code, place the image as a background image for the right hand side so that the 'background: cover;' CSS is used the display that image but limit how much white space there is on the page. Here's the JSON encoded information about this image's file_path and its url- ".json_encode($side_image)." \n";
+}
+if ($square_image) {
+    $additional .= $additional_incr++.". - This supplied images should be added into the web design and put low on the page, beside the contact information at the bottom. It should be added as a 'background: contain' CSS element, to limit how much white space ends up in the HTML display. Here's the JSON encoded information about this image's file_path and its url - ".json_encode($square_image)." \n";
+}
 
 $result = generateWebsiteFromData($businessData, $additional);
 error_log("Generated - ".print_r($result, TRUE));
