@@ -30,6 +30,27 @@ if (!$upload) {
     die('Upload not found');
 }
 
+$cardImagePath = null;
+if (!empty($upload['filename'])) {
+    $cardImagePath = __DIR__ . '/uploads/' . $upload['filename'];
+    if (!file_exists($cardImagePath)) {
+        $remoteUrl = 'https://businesscard2website.com/uploads/' . $upload['filename'];
+        $imgData = @file_get_contents($remoteUrl);
+        if ($imgData !== false) {
+            if (!is_dir(__DIR__ . '/uploads')) {
+                mkdir(__DIR__ . '/uploads', 0777, true);
+            }
+            file_put_contents($cardImagePath, $imgData);
+        } else {
+            $cardImagePath = null;
+        }
+    }
+}
+
+if ($cardImagePath === null) {
+    error_log('Card image not found locally or remotely for upload ID ' . $id);
+}
+
 $stmt = $pdo->prepare('SELECT json_data FROM ocr_data WHERE upload_id = ? ORDER BY id DESC LIMIT 1');
 $stmt->execute([$id]);
 $row = $stmt->fetch();
