@@ -308,15 +308,85 @@ $img_prompt = generateMarketingOpenAI($businessData, $additional);
  
  
 $main_img_prompt = "Make an image that will work great above the fold. Size it  1024x1024 ".$img_prompt;
-$main_image = generateBusinessCardImageGemini($main_img_prompt);
+
+// $main_image = generateBusinessCardImageGemini($main_img_prompt);
+
+/*
+$main_image = generatePolicedImage(
+    $main_img_prompt,
+    [
+        'size' => '1024x1024',
+        'max_tries' => 3,            // try Gemini up to 3 times
+        'fallback_openai' => true    // optional safety net
+    ],
+    $err
+);
+*/
+
+$main_image = generateBusinessCardImage($main_img_prompt, '1024x1024', $err);
+
+
+if (!$main_image) {
+    error_log("Image generation failed: " . $err);
+    // handle gracefully (placeholder image, UI message, etc.)
+} else {
+    $imageUrl = $main_image['url'];
+    // Use this in your generated HTML
+}
+
 $additional .= $additional_incr++.". - This supplied images should be added into the web design and put in an appropriate spot in the page near the top. Here's the JSON encoded information about this image's file_path and its url- ".json_encode($main_image)." \n";    
 
-$side_img_prompt = "Make an image that fit to the side of the website content. Size it 1024x1792 ".$img_prompt;
-$side_image = generateBusinessCardImageGemini($side_img_prompt);
+$side_img_prompt = "Make an image that fit to the side of the website content. Size it 1024x1536 ".$img_prompt;
+// $side_image = generateBusinessCardImageGemini($side_img_prompt);
+
+/*
+$side_image = generatePolicedImage(
+    $side_img_prompt,
+    [
+        'size' => '1024x1536',
+        'max_tries' => 3,            // try Gemini up to 3 times
+        'fallback_openai' => true    // optional safety net
+    ],
+    $err
+);*/
+
+$side_image = generateBusinessCardImage($side_img_prompt, '1024x1536', $err);
+
+if (!$side_image) {
+    error_log("Image generation failed: " . $err);
+    // handle gracefully (placeholder image, UI message, etc.)
+} else {
+    $imageUrl = $side_image['url'];
+    // Use this in your generated HTML
+}
+
 $additional .= $additional_incr++.". - This supplied images should be added into the web design and put in an appropriate spot in the page on the right hand side with text to the left of the image in a two-column set up that stacks vertically on tablet portrait views and smaller viewports. When building the HTML code, place the image as a background image for the right hand side so that the 'background: cover;' CSS is used the display that image but limit how much white space there is on the page. Here's the JSON encoded information about this image's file_path and its url- ".json_encode($side_image)." \n";    
 
 $square_img_prompt = "Make an image that will work great low on the web page. Size it  1024x1024 ".$img_prompt;
-$square_image = generateBusinessCardImageGemini($square_img_prompt);
+// $square_image = generateBusinessCardImageGemini($square_img_prompt);
+
+/*
+$square_image = generatePolicedImage(
+    $square_img_prompt,
+    [
+        'size' => '1024x1024',
+        'max_tries' => 3,            // try Gemini up to 3 times
+        'fallback_openai' => true    // optional safety net
+    ],
+    $err
+);
+*/
+
+$square_image = generateBusinessCardImage($square_img_prompt, '1024x1536', $err);
+
+if (!$square_image) {
+    error_log("Image generation failed: " . $err);
+    // handle gracefully (placeholder image, UI message, etc.)
+} else {
+    $imageUrl = $square_image['url'];
+    // Use this in your generated HTML
+}
+
 $additional .= $additional_incr++.". - This supplied images should be added into the web design and put low on the page, beside the contact information at the bottom. It should be added as a 'background: contain' CSS element, to limit how much white space ends up in the HTML display. Here's the JSON encoded information about this image's file_path and its url - ".json_encode($square_image)." \n";    
 
 
@@ -457,4 +527,162 @@ function getMimeType($filePath, $fileName = '') {
     return $mimeTypes[$extension] ?? 'application/octet-stream';
 }
 
-?>
+
+/**
+ * Generate an image via Gemini, then have GPT-5-mini check for violations (esp. text).
+ * Auto-retries Gemini with stricter negatives/new seed up to $maxTries.
+ *
+ * @param string $basePrompt  The positive prompt for the image
+ * @param array  $options     ['size'=>'1024x1024','max_tries'=>3,'rules'=>[...],'fallback_openai'=>false,'openai_model'=>'gpt-image-1']
+ * @param string|null &$error Error message (if any)
+ * @return array|null ['url'=>..., 'attempts'=>int, 'audit'=>array] or null on failure
+ */
+function generatePolicedImage(string $basePrompt, array $options = [], ?string &$error = null): ?array
+{
+    $size         = $options['size']        ?? '1024x1024';
+    $maxTries     = max(1, (int)($options['max_tries'] ?? 3));
+    $rules        = $options['rules']       ?? ['no_text' => true, 'no_ui' => true, 'no_charts' => true];
+    $negatives    = $options['negatives']   ?? ["no text", "no letters", "no words", "no numbers", "no watermark", "no captions", "no signage", "no labels", "no UI elements", "no icons with letters"];
+    $fallbackOI   = (bool)($options['fallback_openai'] ?? false);
+    $openaiImg    = $options['openai_model'] ?? 'gpt-image-1'; // if you want an OpenAI fallback
+
+    $auditLog = [];
+    $lastErr  = null;
+
+    for ($attempt = 1; $attempt <= $maxTries; $attempt++) {
+        $opts = [
+            'size' => $size,
+            'seed' => random_int(1, PHP_INT_MAX),
+            'negative_hints' => $negatives,
+        ];
+        $g = geminiGenerateImage($basePrompt, $opts);
+        if (!$g['ok'] || empty($g['url'])) {
+            $lastErr = $g['error'] ?? 'Gemini image generation failed.';
+            $auditLog[] = ['attempt' => $attempt, 'stage' => 'gemini', 'ok' => false, 'error' => $lastErr];
+            continue;
+        }
+
+        // Audit with GPT-5 mini (vision)
+        $audit = openaiCheckImageCompliance($g['url'], $rules, $e);
+        $auditLog[] = ['attempt' => $attempt, 'stage' => 'audit', 'ok' => $audit['ok'], 'audit' => $audit, 'error' => $e];
+
+        if ($audit['ok']) {
+            return ['url' => $g['url'], 'attempts' => $attempt, 'audit' => $auditLog];
+        }
+
+        // Strengthen negatives for next try, depending on what was found
+        if (!empty($audit['detected_text'])) {
+            // Add a precise negative matching a common failure mode
+            $negatives[] = "avoid any visible letters or numbers in the scene";
+            $negatives[] = "no signage or text-bearing surfaces";
+            $negatives = array_values(array_unique($negatives));
+        }
+    }
+
+    // Optional: fall back to OpenAI image model if Gemini keeps ignoring negatives
+    if ($fallbackOI) {
+        $img = openaiGenerateImageNoText($basePrompt, ['size' => $size], $error);
+        if ($img && !empty($img['url'])) {
+            // Double-check with GPT-5 as well
+            $audit = openaiCheckImageCompliance($img['url'], $rules, $e2);
+            $auditLog[] = ['attempt' => 'fallback_openai', 'stage' => 'audit', 'ok' => $audit['ok'], 'audit' => $audit, 'error' => $e2];
+            if ($audit['ok']) {
+                return ['url' => $img['url'], 'attempts' => $maxTries + 1, 'audit' => $auditLog];
+            }
+            $lastErr = 'OpenAI fallback image still failed audit.';
+        } else {
+            $lastErr = $error ?: 'OpenAI fallback image generation failed.';
+        }
+    }
+
+    error_log("generatePolicedImage - " . print_r($auditLog, TRUE));
+    error_log("generatePolicedImage - " . print_r($lastErr, TRUE));
+
+    $error = $lastErr ?: 'All attempts failed to produce a compliant image.';
+    return null;
+}
+    
+/**
+ * Save one or more images returned as base64 (OpenAI/Gemini "b64_json") and return URLs.
+ *
+ * @param array  $apiResponse JSON-decoded response that contains ['data'][i]['b64_json']
+ * @param string $saveDirAbsolute Absolute directory path to save files (e.g. __DIR__.'/uploads/images')
+ * @param string $publicUrlBase  Public base URL that maps to $saveDirAbsolute (e.g. 'https://example.com/uploads/images')
+ * @param string $prefix         Optional filename prefix
+ * @return array                 List of saved images with url/path/meta
+ */
+function saveImagesFromB64JsonResponse(array $apiResponse, string $saveDirAbsolute, string $publicUrlBase, string $prefix = 'img')
+{
+    if (!isset($apiResponse['data']) || !is_array($apiResponse['data'])) {
+        return [];
+    }
+
+    // Ensure save directory exists
+    if (!is_dir($saveDirAbsolute)) {
+        if (!mkdir($saveDirAbsolute, 0755, true) && !is_dir($saveDirAbsolute)) {
+            throw new RuntimeException("Failed to create directory: $saveDirAbsolute");
+        }
+    }
+
+    // Normalize base URL (no trailing slash)
+    $publicUrlBase = rtrim($publicUrlBase, '/');
+
+    $results = [];
+    foreach ($apiResponse['data'] as $i => $item) {
+        if (empty($item['b64_json'])) {
+            continue;
+        }
+
+        // 1) Decode base64
+        $raw = base64_decode($item['b64_json'], true);
+        if ($raw === false) {
+            // Some APIs might return url-safe base64; try a repair pass
+            $raw = base64_decode(strtr($item['b64_json'], '-_', '+/'), true);
+            if ($raw === false) {
+                // skip this one
+                continue;
+            }
+        }
+
+        // 2) Detect mime/type & dimensions
+        $imgInfo = @getimagesizefromstring($raw); // returns [width, height, type, attr, 'mime'=>...]
+        $mime = $imgInfo['mime'] ?? 'image/png'; // OpenAI often returns PNG for b64_json
+        $ext = match ($mime) {
+            'image/png'  => 'png',
+            'image/webp' => 'webp',
+            'image/jpeg' => 'jpg',
+            default      => 'png',  // fallback
+        };
+
+        // 3) Create unique filename
+        $rand  = bin2hex(random_bytes(6));
+        $fname = sprintf('%s_%s_%02d.%s', $prefix, date('Ymd_His'), $i, $ext);
+        // If you prefer shorter names: $fname = sprintf('%s_%s.%s', $prefix, $rand, $ext);
+
+        $absPath = rtrim($saveDirAbsolute, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $fname;
+        $ok = file_put_contents($absPath, $raw);
+        if ($ok === false) {
+            // Couldn’t write—skip
+            continue;
+        }
+
+        // 4) Build public URL
+        $url = $publicUrlBase . '/' . rawurlencode($fname);
+
+        $results[] = [
+            'index'     => $i,
+            'url'       => $url,
+            'path'      => $absPath,
+            'filename'  => $fname,
+            'mime'      => $mime,
+            'width'     => $imgInfo[0] ?? null,
+            'height'    => $imgInfo[1] ?? null,
+            'background'=> $apiResponse['background'] ?? null,
+            'created'   => $apiResponse['created'] ?? null,
+        ];
+    }
+
+    return $results;
+}
+
+    

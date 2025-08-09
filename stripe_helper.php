@@ -8,6 +8,9 @@ function stripeRequest(string $method, string $endpoint, array $params = []) {
     if (!$secret) {
         return null;
     }
+    
+    // print "We got something";
+    
     $url = 'https://api.stripe.com/v1/' . ltrim($endpoint, '/');
     $ch = curl_init($url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -24,6 +27,14 @@ function stripeRequest(string $method, string $endpoint, array $params = []) {
         curl_close($ch);
         return null;
     }
+    
+    /*
+    print '<pre>';
+    print print_r($response, TRUE);
+    print print_r($ch, TRUE);    
+    print '</pre>';
+    */
+    
     $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
     if ($status < 200 || $status >= 300) {

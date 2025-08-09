@@ -5,6 +5,7 @@ require 'stripe_helper.php';
 require_login();
 
 $userId = current_user_id();
+
 $stmt = $pdo->prepare('SELECT stripe_customer_id FROM billing_subscriptions WHERE user_id = ? ORDER BY id DESC LIMIT 1');
 $stmt->execute([$userId]);
 $sub = $stmt->fetch();

@@ -267,6 +267,138 @@ function generateMarketingOpenAI(string $prompt, ?string &$error = null) {
     return trim($json['choices'][0]['message']['content']);
 }
 
+
+function generateBusinessCardImage(string $prompt, string $size = '1024x1024', ?string &$error = null): ?array
+{
+    // 1) Build a strong, unambiguous prompt (no text whatsoever)
+    $fullPrompt = trim(sprintf(
+        "Create a photo-realistic image that matches this theme: %s\n\n".
+        "Creative direction:\n".
+        "- Natural, professional lighting; cinematic but believable.\n".
+        "- Composition suited for a website hero image.\n".
+        "- West Coast vibe if applicable (subtle, not kitschy).\n".
+        "HARD CONSTRAINTS (must follow):\n".
+        "- Do NOT include any text, letters, words, or numbers anywhere in the image.\n".
+        "- No signage, no labels, no watermarks, no captions, no logos containing letters.\n".
+        "- Do NOT depict a business card.\n",
+        $prompt
+    ));
+
+    // 2) Call the Images API using gpt-image-1
+    //    NOTE: openaiImageRequest($postData, &$error) should POST to /v1/images/generations (or your wrapper’s equivalent)
+    //    and return the raw JSON response as a string.
+
+    /*
+    $postData = [
+        'model'           => 'gpt-image-1',
+        'prompt'          => $fullPrompt,
+        'n'               => 1,
+        'size'            => $size,         // e.g. 1024x1024, 1024x1792, 1792x1024
+        'quality'         => 'high',        // optional: 'high' | 'standard'
+        'background'      => 'opaque',      // optional: 'transparent' | 'opaque'
+        'response_format' => 'b64_json',    // get base64 back so we can save locally
+        // 'user'         => 'bc2w-image-gen', // optional: pass a user identifier for auditability
+    ];
+    */
+    
+    $postData = [
+        'model'    => 'gpt-image-1',
+        'prompt'   => $fullPrompt,
+        'size'     => $size,         // '1024x1024', '1024x1792', or '1792x1024'
+        'quality'  => 'medium',        // optional
+        'n'        => 1
+    ];
+
+    $response = openaiImageRequest($postData, $error);
+
+    error_log("LINE 303 - ".print_r($response, TRUE));
+
+
+    if (!$response) {
+        // $error should be set by your wrapper
+        return null;
+    }
+
+    // 3) Parse & validate
+    $json = json_decode($response, true);
+    if (
+        !is_array($json) ||
+        empty($json['data']) ||
+        empty($json['data'][0]['b64_json'])
+    ) {
+        $error = 'Unexpected response format from OpenAI Images API.';
+        error_log("Images API raw response:\n" . $response);
+        return null;
+    }
+
+    $b64 = $json['data'][0]['b64_json'];
+
+    // 4) Decode and detect mime/extension
+    $imageData = base64_decode($b64, true);
+    if ($imageData === false) {
+        // Try URL-safe repair in case the response uses -_ variant (rare)
+        $imageData = base64_decode(strtr($b64, '-_', '+/'), true);
+        if ($imageData === false) {
+            $error = 'Failed to decode base64 image data.';
+            return null;
+        }
+    }
+
+    $info = @getimagesizefromstring($imageData);
+    $mime = $info['mime'] ?? 'image/png';
+    switch ($mime) {
+        case 'image/png':
+            $ext = 'png';
+            break;
+        case 'image/jpeg':
+            $ext = 'jpg';
+            break;
+        case 'image/webp':
+            $ext = 'webp';
+            break;
+        default:
+            $ext = 'png';
+            break;
+    }
+
+    // 5) Save to disk (ensure the directory is web-accessible)
+    $uploadDir = __DIR__ . '/generated_images';
+    if (!is_dir($uploadDir) && !mkdir($uploadDir, 0755, true) && !is_dir($uploadDir)) {
+        $error = 'Could not create directory for saving images.';
+        return null;
+    }
+
+    $fileName = sprintf('bc_img_%s.%s', date('Ymd_His') . '_' . bin2hex(random_bytes(4)), $ext);
+    $filePath = $uploadDir . '/' . $fileName;
+
+    if (file_put_contents($filePath, $imageData) === false) {
+        $error = 'Failed to write image file to disk.';
+        return null;
+    }
+
+    // 6) Build a public URL (adjust this to your environment)
+    // If you want to build it dynamically:
+    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https://' : 'http://';
+    $host   = $_SERVER['HTTP_HOST'] ?? 'localhost';
+    $publicBaseUrl = $scheme . $host . '/generated_images';
+
+    // If you prefer a fixed base:
+    // $publicBaseUrl = 'https://businesscard2website.com/generated_images';
+
+    return [
+        'file_path' => $filePath,
+        'url'       => $publicBaseUrl . '/' . rawurlencode($fileName),
+        'mime'      => $mime,
+        'width'     => $info[0] ?? null,
+        'height'    => $info[1] ?? null,
+        'model'     => 'gpt-image-1',
+        'size'      => $size,
+        'quality'   => $postData['quality'],
+        'background'=> $postData['background'],
+    ];
+}
+
+
 /**
  * Generate a photorealistic image via OpenAI’s Images API,
  * save it to disk and return its path & URL.
@@ -276,7 +408,7 @@ function generateMarketingOpenAI(string $prompt, ?string &$error = null) {
  * @param  string|null &$error  If anything goes wrong, this will be populated.
  * @return array|null          ['file_path'=>string, 'url'=>string] or null on failure.
  */
-function generateBusinessCardImage(string $prompt, string $size = '1024x1024', ?string &$error = null): ?array
+function OldgenerateBusinessCardImage(string $prompt, string $size = '1024x1024', ?string &$error = null): ?array
 {
     // 1) build the image prompt
     $fullPrompt = sprintf(
@@ -604,7 +736,7 @@ USR;
             'json_schema' => $responseSchema
         ],
         // Leave room for full HTML + JSON
-        'max_completion_tokens' => 15000
+        'max_completion_tokens' => 25000
     ];
 
     $response = openaiChatRequest($postData, $error);
@@ -720,6 +852,198 @@ function generateFromImages( $businessData, $imageUrl, $id ) {
 }
 
 
+if (!function_exists('openaiCheckImageCompliance')) {
+    /**
+     * Ask GPT-5-mini (vision) to check an image for prompt violations (e.g., text).
+     * Returns:
+     *  [
+     *    'ok' => bool,            // true if pass, false if fail or error
+     *    'verdict' => 'pass'|'fail'|'error',
+     *    'has_text' => bool,
+     *    'detected_text' => [ ... ],
+     *    'reasons' => [ ... ],
+     *    'confidence' => float,
+     *    'raw' => array,          // raw model JSON (for logging)
+     *    'error' => string|null
+     *  ]
+     */
+    function openaiCheckImageCompliance(string $imageUrl, array $rules = [], ?string &$error = null): array
+    {
+        $rules = $rules ?: [
+            'no_text' => true,          // no words, letters, numbers, watermarks, logos-as-text, captions
+            'no_ui'   => true,          // no UI chrome, app windows, buttons, etc.
+            'no_charts'=> true,         // no labeled charts/graphs (often rendered as text)
+        ];
+
+        $system = <<<SYS
+You are an expert computer vision QA auditor. Your job is to verify whether an image
+violates generation rules like "no text" overlays, watermarks, obvious typography,
+UI chrome, or labeled diagrams. Be strict.
+Return ONLY valid JSON according to the given schema—no extra commentary.
+SYS;
+
+        $ruleText = json_encode($rules, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+
+        $user = [
+            [
+                'type' => 'text',
+                'text' => "Audit this image for rule violations. Rules JSON:\n{$ruleText}\n\nIf any text (letters, numbers, words) appears—including watermarks, captions, logos rendered as type, on signs, or as overlaid typography—mark has_text=true and verdict=fail. If clean of text and UI chrome, verdict=pass."
+            ],
+            [
+                'type' => 'image_url',
+                'image_url' => [
+                    'url' => $imageUrl
+                ]
+            ]
+        ];
+
+        $responseSchema = [
+            "name" => "ImageCompliance",
+            "strict" => true,
+            "schema" => [
+                "type" => "object",
+                "additionalProperties" => false,
+                "required" => ["verdict","has_text","detected_text","reasons","confidence"],
+                "properties" => [
+                    "verdict" => ["type" => "string", "enum" => ["pass","fail"]],
+                    "has_text" => ["type" => "boolean"],
+                    "detected_text" => [
+                        "type" => "array",
+                        "items" => ["type" => "string"]
+                    ],
+                    "reasons" => [
+                        "type" => "array",
+                        "items" => ["type" => "string"]
+                    ],
+                    "confidence" => ["type" => "number", "minimum" => 0, "maximum" => 1]
+                ]
+            ]
+        ];
+
+        $postData = [
+            'model' => 'gpt-5-mini',
+            'messages' => [
+                ['role' => 'system', 'content' => $system],
+                ['role'  => 'user',  'content' => $user],
+            ],
+            'temperature' => 0.0,
+            'stream' => false,
+            'response_format' => [
+                'type' => 'json_schema',
+                'json_schema' => $responseSchema
+            ],
+            'max_tokens' => 600
+        ];
+
+        $resp = openaiChatRequest($postData, $error);
+        if (!$resp) {
+            return ['ok' => false, 'verdict' => 'error', 'has_text' => false, 'detected_text' => [], 'reasons' => ['no_response'], 'confidence' => 0.0, 'raw' => null, 'error' => $error ?: 'No response'];
+        }
+
+        $json = json_decode($resp, true);
+        $content = $json['choices'][0]['message']['content'] ?? '';
+        if ($content === '') {
+            $finish = $json['choices'][0]['finish_reason'] ?? 'unknown';
+            $e = "Empty content from OpenAI (finish_reason={$finish})";
+            return ['ok' => false, 'verdict' => 'error', 'has_text' => false, 'detected_text' => [], 'reasons' => [$e], 'confidence' => 0.0, 'raw' => $json, 'error' => $e];
+        }
+
+        try {
+            $data = json_decode($content, true, 512, JSON_THROW_ON_ERROR);
+        } catch (Throwable $t) {
+            $e = 'Invalid JSON from OpenAI: ' . $t->getMessage();
+            return ['ok' => false, 'verdict' => 'error', 'has_text' => false, 'detected_text' => [], 'reasons' => [$e], 'confidence' => 0.0, 'raw' => $json, 'error' => $e];
+        }
+
+        $pass = isset($data['verdict']) && $data['verdict'] === 'pass';
+        return [
+            'ok' => $pass,
+            'verdict' => $data['verdict'] ?? 'error',
+            'has_text' => (bool)($data['has_text'] ?? false),
+            'detected_text' => $data['detected_text'] ?? [],
+            'reasons' => $data['reasons'] ?? [],
+            'confidence' => (float)($data['confidence'] ?? 0),
+            'raw' => $json,
+            'error' => null
+        ];
+    }
+}
+
+if (!function_exists('openaiGenerateImageNoText')) {
+    /**
+     * Generate an image with OpenAI image model with strict "no text" negatives.
+     * Return ['url'=>..., 'raw'=>..., 'error'=>...] or null on failure.
+     */
+    function openaiGenerateImageNoText(string $prompt, array $opts = [], ?string &$error = null): ?array
+    {
+        $size = $opts['size'] ?? '1024x1024';
+
+        $negatives = [
+            "no text", "no letters", "no words", "no numbers",
+            "no watermarks", "no captions", "no signage",
+            "no UI elements", "no labeled charts", "no logos-as-text"
+        ];
+
+        $fullPrompt = trim($prompt) . "\n\nSTRICT NEGATIVE CONSTRAINTS:\n- " . implode("\n- ", $negatives) . "\n\nHard rule: Do NOT include any text of any kind.";
+
+        // If you already have openaiImageRequest(), use that. Otherwise, call /images.
+        // Example using Images API (adjust to your helper):
+        $postData = [
+            'model' => 'gpt-image-1',  // Or your available OpenAI image model
+            'prompt' => $fullPrompt,
+            'size' => $size,
+            'n' => 1,
+            // 'response_format' => 'url'
+        ];
+
+        $resp = openaiImageRequest($postData, $error); // your existing wrapper, returns raw JSON
+        if (!$resp) return null;
+
+        $json = json_decode($response, true);
+        if (
+            ! $json ||
+            ! isset($json['data'][0]['b64_json'])
+        ) {
+            error_log(print_r($response, TRUE));
+            $error = 'Unexpected response format from OpenAI Images API.';
+            return null;
+        }
+        $b64 = $json['data'][0]['b64_json'];
+
+        $imageData = base64_decode($b64);
+        if ($imageData === false) {
+            $error = 'Failed to decode base64 image data.';
+            return null;
+        }
+    
+        // choose your storage directory
+        $gen_img = '/generated_images';
+        $uploadDir = __DIR__ .$gen_img;
+        if (! is_dir($uploadDir) && ! mkdir($uploadDir, 0755, true)) {
+            $error = 'Could not create directory for saving images.';
+            return null;
+        }
+    
+        $fileName = uniqid('bc_img_') . '.png';
+        $filePath = $uploadDir . '/' . $fileName;
+    
+        if (file_put_contents($filePath, $imageData) === false) {
+            $error = 'Failed to write image file to disk.';
+            return null;
+        }
+
+        $site = getenv('SITE_URL');
+        $url = $site.$gen_img.$fileName;
+
+        if (!$url) {
+            $error = 'OpenAI image response missing URL.';
+            return null;
+        }
+        return ['url' => $url, 'raw' => $json, 'error' => null];
+    }
+}
+
+
 // Search API Function
 
 class GoogleMapsReviewsFetcherCurl
@@ -791,6 +1115,7 @@ class GoogleMapsReviewsFetcherCurl
         
     }
 }
+
 
 // Usage
 
