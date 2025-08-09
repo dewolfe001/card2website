@@ -117,6 +117,13 @@ $jsonString = json_encode($businessData, JSON_PRETTY_PRINT);
 $stmt = $pdo->prepare('INSERT INTO ocr_edits (upload_id, edited_text, created_at) VALUES (?, ?, NOW())');
 $stmt->execute([$id, $jsonString]);
 
+$layoutImageUrl = null;
+if (!empty($_POST['layout_choice'])) {
+    $previewFile = basename($_POST['layout_choice']);
+    $fullFile = str_replace('_preview', '_fullsize', $previewFile);
+    $layoutImageUrl = BASEURL . '/site_layouts/' . $fullFile;
+}
+
 $uploadedFiles = [];
 // Handle additional website images
 if (!empty($_FILES['website_images']['name'][0])) {
@@ -382,7 +389,7 @@ if ($square_image) {
     $additional .= $additional_incr++.". - This supplied images should be added into the web design and put low on the page, beside the contact information at the bottom. It should be added as 'background: cover; height: 100%; background-position: top' CSS styling, to limit how much white space ends up in the HTML display. Here's the JSON encoded information about this image's file_path and its url - ".json_encode($square_image)." \n";
 }
 
-$result = generateWebsiteFromData($businessData, $additional);
+$result = generateWebsiteFromData($businessData, $additional, $layoutImageUrl);
 error_log("Generated - ".print_r($result, TRUE));
 $html = $result['html_code'] ?? null;
 
