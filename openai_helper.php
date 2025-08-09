@@ -580,7 +580,7 @@ function classifyNaics(string $text, ?string &$error = null): ?array {
 
 // The Big Kahuna...
 
-function generateWebsiteFromData($businessData, string $additional = '', ?string &$error = null) {
+function generateWebsiteFromData($businessData, string $additional = '', ?string $layoutImageUrl = null, ?string &$error = null) {
     // Normalize $businessData to a JSON-ish string if an array/object is passed
     if (is_array($businessData) || is_object($businessData)) {
         $businessData = json_encode($businessData, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
