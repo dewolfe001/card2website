@@ -6,6 +6,27 @@ $stmt = $pdo->prepare('SELECT filename FROM uploads WHERE id = ?');
 $stmt->execute([$id]);
 $upload = $stmt->fetch();
 
+$imgSrc = null;
+if ($upload && !empty($upload['filename'])) {
+    $localPath = __DIR__ . '/uploads/' . $upload['filename'];
+    $remoteUrl = 'https://businesscard2website.com/uploads/' . $upload['filename'];
+
+    if (file_exists($localPath)) {
+        $imgSrc = 'uploads/' . $upload['filename'];
+    } else {
+        $imgData = @file_get_contents($remoteUrl);
+        if ($imgData !== false) {
+            if (!is_dir(__DIR__ . '/uploads')) {
+                mkdir(__DIR__ . '/uploads', 0777, true);
+            }
+            file_put_contents($localPath, $imgData);
+            $imgSrc = 'uploads/' . $upload['filename'];
+        } else {
+            $imgSrc = $remoteUrl;
+        }
+    }
+}
+
 $analysisJson = null;
 $analysisArray = null;
 if ($upload) {
@@ -371,7 +392,11 @@ function renderInputs(array $data, string $prefix = '') {
     <div class="container mx-auto p-8">
         <h1 class="text-2xl font-bold mb-4 text-center">Preview</h1>
         <div class="text-center mb-6">
-            <img src="uploads/<?php echo htmlspecialchars($upload['filename']); ?>" class="mx-auto max-w-xs" alt="Uploaded Card">
+            <?php if (!empty($imgSrc)): ?>
+            <img src="<?php echo htmlspecialchars($imgSrc); ?>" class="mx-auto max-w-xs" alt="Uploaded Card">
+            <?php else: ?>
+            <p class="text-center text-red-500">Preview image not available.</p>
+            <?php endif; ?>
         </div>
         <?php if ($analysisJson): ?>
         <form id="dataForm" action="generate.php" method="post" enctype="multipart/form-data" class="bg-white p-4 rounded shadow mb-4">
