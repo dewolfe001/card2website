@@ -399,9 +399,7 @@ if (!$html) {
 }
 
 // put in our branding
-
-$new_footer = '<span class="credits"><a href="https://businesscard2website.com/" target="_blank" title="Turn your business card into a website.">Get Your Own Website</a></span></footer>';
-
+$new_footer = '<span class="credits" style="float: right; text-align: right;"><a href="https://businesscard2website.com/" target="_blank" title="Turn your business card into a website.">Get Your Own Website</a></span></footer>';
 $html = str_replace('</footer>', $new_footer, $html);
 
 $html = str_replace('\n', "\n", $html);
