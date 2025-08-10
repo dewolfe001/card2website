@@ -123,6 +123,49 @@ function renderInputs(array $data, string $prefix = '') {
         }
     }
 }
+
+// Load available site layout preview images
+$layoutPreviews = [];
+$layoutDir = __DIR__ . '/site_layouts/';
+if (!is_dir($layoutDir)) {
+    mkdir($layoutDir, 0777, true);
+}
+
+// Refresh remote previews occasionally to keep cache up to date
+$cacheFile = $layoutDir . 'layout_cache.json';
+$refreshInterval = 24 * 60 * 60; // 24 hours
+$shouldRefresh = true;
+if (file_exists($cacheFile)) {
+    $cacheData = json_decode(file_get_contents($cacheFile), true);
+    if (isset($cacheData['last_checked']) && (time() - $cacheData['last_checked']) < $refreshInterval) {
+        $shouldRefresh = false;
+    }
+}
+
+if ($shouldRefresh) {
+    $remoteHtml = @file_get_contents('https://businesscard2website.com/site_layouts/');
+    if ($remoteHtml !== false) {
+        if (preg_match_all('/href="([^"\\?]*_preview\.[a-zA-Z0-9]+)"/', $remoteHtml, $matches)) {
+            $remotePreviews = array_unique($matches[1]);
+            foreach ($remotePreviews as $preview) {
+                $localFile = $layoutDir . $preview;
+                if (!file_exists($localFile)) {
+                    $imgData = @file_get_contents('https://businesscard2website.com/site_layouts/' . $preview);
+                    if ($imgData !== false) {
+                        file_put_contents($localFile, $imgData);
+                    }
+                }
+            }
+        }
+    }
+    file_put_contents($cacheFile, json_encode(['last_checked' => time()]));
+}
+
+// Find local preview images
+$previewFiles = glob($layoutDir . '*_preview.*');
+foreach ($previewFiles as $file) {
+    $layoutPreviews[] = basename($file);
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -411,7 +454,19 @@ function renderInputs(array $data, string $prefix = '') {
             
             <label class="block mt-4 mb-2 font-semibold">Describe your business</label>
             <textarea name="additional_details" rows="4" class="w-full border p-2 text-sm"></textarea>
-            
+
+            <?php if (!empty($layoutPreviews)): ?>
+            <label class="block mt-4 mb-2 font-semibold">Choose a site layout</label>
+            <div class="flex flex-wrap gap-4">
+                <?php foreach ($layoutPreviews as $idx => $layout): ?>
+                <label class="cursor-pointer">
+                    <input type="radio" name="layout_choice" value="<?php echo htmlspecialchars($layout); ?>" class="sr-only peer" <?php echo $idx === 0 ? 'checked' : ''; ?>>
+                    <img src="site_layouts/<?php echo htmlspecialchars($layout); ?>" alt="Layout <?php echo $idx + 1; ?>" class="h-32 border-4 border-transparent peer-checked:border-blue-500">
+                </label>
+                <?php endforeach; ?>
+            </div>
+            <?php endif; ?>
+
             <label class="block mt-4 mb-2 font-semibold">Add images we could add to your website</label>
             <div class="upload-container">
                 <div class="button-group">
