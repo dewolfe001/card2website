@@ -36,13 +36,31 @@ $html = stripslashes($html);
     <div class="container mx-auto p-8">
         <h1 class="text-2xl font-bold mb-4 text-center">Your Generated Site</h1>
         <div class="bg-white p-4 rounded shadow mb-4">
-            <a href="edit_site.php?id=<?php echo $id; ?>" target="preview" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded" style="float: right; margin-bottom: 8px;">Edit Web Page</a>
-            <iframe src="download.php?id=<?php echo $id; ?>&display=1" class="w-full h-96" name="preview"></iframe>
+            <button id="toggleEditor" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded" style="float: right; margin-bottom: 8px;">Edit Web Page</button>
+            <iframe id="siteFrame" src="download.php?id=<?php echo $id; ?>&display=1" class="w-full h-96"></iframe>
         </div>
         <div class="text-center mt-4">
             <a href="download.php?id=<?= $id ?>" class="bg-green-600 text-white px-4 py-2 rounded">Download HTML</a>
             <a href="domain_search.php?id=<?= $id ?>" class="ml-4 bg-blue-600 text-white px-4 py-2 rounded">Find Domain</a>
         </div>
     </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const iframe = document.getElementById('siteFrame');
+            const btn = document.getElementById('toggleEditor');
+            let editing = false;
+
+            btn.addEventListener('click', function () {
+                if (!editing) {
+                    iframe.src = 'edit_site.php?id=<?php echo $id; ?>';
+                    btn.textContent = 'View Web Page';
+                } else {
+                    iframe.src = 'download.php?id=<?php echo $id; ?>&display=1';
+                    btn.textContent = 'Edit Web Page';
+                }
+                editing = !editing;
+            });
+        });
+    </script>
 </body>
 </html>
