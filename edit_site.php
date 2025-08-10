@@ -12,7 +12,7 @@ $nonce = $_SESSION['editor_nonce'];
 // If your current page is already https://businesscard2website.com/view_site.php?id=47,
 // just point the iframe there.
 $id = isset($_GET['id']) ? (int) $_GET['id'] : -1;
-$iframeSrc = "/download.php?id={$id}&display=1";
+$iframeSrc = "/generated_sites/{$id}.html?v=" . time();
 
 ?>
 <!doctype html>
