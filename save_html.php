@@ -4,41 +4,53 @@ declare(strict_types=1);
 session_start();
 header('Content-Type: application/json; charset=utf-8');
 
-function fail(string $msg, int $code = 400) {
+require_once __DIR__ . '/config.php';
+
+function fail(string $msg, int $code = 400): void {
     http_response_code($code);
     echo json_encode(['success' => false, 'error' => $msg], JSON_UNESCAPED_SLASHES);
     exit;
 }
 
 $raw = file_get_contents('php://input');
-if (!$raw) fail('No payload');
+if (!$raw) {
+    fail('No payload');
+}
 $input = json_decode($raw, true);
-if (!$input) fail('Invalid JSON');
+if (!$input) {
+    fail('Invalid JSON');
+}
 
 if (empty($input['nonce']) || empty($_SESSION['editor_nonce']) || !hash_equals($_SESSION['editor_nonce'], (string)$input['nonce'])) {
     fail('Invalid nonce', 403);
 }
 
-$id = isset($input['id']) ? (int)$input['id'] : 0;
+$id   = isset($input['id']) ? (int) $input['id'] : 0; // upload_id
 $html = $input['html'] ?? '';
-if ($id <= 0 || !$html) fail('Missing id or html');
-
-// Basic sanitation idea: allow full doc but you may want to sanitize/strip scripts if needed.
-if (stripos($html, '<script') !== false) {
-    // Optionally reject or sanitize
-    // fail('Scripts not allowed');
+if ($id <= 0 || !$html) {
+    fail('Missing id or html');
 }
 
-// Save using PDO
-try {
-    // Adjust DSN/credentials
-    $pdo = new PDO('mysql:host=localhost;dbname=businesscard2web_app;charset=utf8mb4', 'DB_USER', 'DB_PASS', [
-        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
-    ]);
+// Basic sanitation idea: allow full doc but you may want to sanitize/strip scripts if needed.
+// Currently we simply accept the HTML provided by the editor.
 
-    // Example table: generated_sites(id INT PK, html_code LONGTEXT, updated_at TIMESTAMP)
-    $stmt = $pdo->prepare('UPDATE generated_sites SET html_code = ?, updated_at = NOW() WHERE id = ?');
-    $stmt->execute([$html, $id]);
+try {
+    // Ensure generated_sites directory exists
+    $dir = __DIR__ . '/generated_sites/';
+    if (!is_dir($dir) && !mkdir($dir, 0777, true)) {
+        fail('Cannot create generated_sites directory', 500);
+    }
+
+    // Write HTML file that is served to the user
+    $file = $dir . $id . '.html';
+    if (file_put_contents($file, $html) === false) {
+        fail('Failed to write HTML file', 500);
+    }
+
+    // Update database record for this upload
+    $publicUrl = '/generated_sites/' . $id . '.html';
+    $stmt = $pdo->prepare('UPDATE generated_sites SET html_code = ?, public_url = ?, created_at = NOW() WHERE upload_id = ? ORDER BY id DESC LIMIT 1');
+    $stmt->execute([$html, $publicUrl, $id]);
 
     echo json_encode(['success' => true]);
 } catch (Throwable $e) {
