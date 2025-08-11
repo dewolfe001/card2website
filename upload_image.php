@@ -12,6 +12,44 @@ function fail(string $msg, int $code = 400): void {
     exit;
 }
 
+/**
+ * Detect the MIME type of a file in a robust way.
+ *
+ * Some hosting environments may not have the Fileinfo extension
+ * enabled which provides the `finfo` class.  Attempt to use it when
+ * available and gracefully fall back to other PHP functions so that
+ * uploads don't trigger a fatal error.
+ */
+function detectMimeType(string $tmpPath): string
+{
+    // Prefer finfo when available
+    if (class_exists('finfo')) {
+        $finfo = new finfo(FILEINFO_MIME_TYPE);
+        $mime  = $finfo->file($tmpPath);
+        if ($mime !== false) {
+            return $mime;
+        }
+    }
+
+    // Fall back to mime_content_type if provided
+    if (function_exists('mime_content_type')) {
+        $mime = mime_content_type($tmpPath);
+        if ($mime !== false) {
+            return $mime;
+        }
+    }
+
+    // Last resort: use getimagesize which returns MIME for images
+    if (function_exists('getimagesize')) {
+        $info = getimagesize($tmpPath);
+        if ($info !== false && isset($info['mime'])) {
+            return $info['mime'];
+        }
+    }
+
+    return '';
+}
+
 if (empty($_POST['nonce']) || empty($_SESSION['editor_nonce']) || !hash_equals($_SESSION['editor_nonce'], (string) $_POST['nonce'])) {
     fail('Invalid nonce', 403);
 }
@@ -33,8 +71,7 @@ $allowed = [
     'image/webp' => 'webp',
     'image/avif' => 'avif'
 ];
-$finfo = new finfo(FILEINFO_MIME_TYPE);
-$mime  = $finfo->file($_FILES['image']['tmp_name']) ?: '';
+$mime  = detectMimeType($_FILES['image']['tmp_name']);
 if (!isset($allowed[$mime])) {
     fail('Unsupported image type');
 }
