@@ -55,7 +55,7 @@ $iframeSrc = "/generated_sites/{$id}.html?v=" . time();
     <button type="button" data-heading="h3">H3</button>
     <button type="button" id="mkLink">Link</button>
     <button type="button" id="rmLink">Unlink</button>
-    <span class="inline-tip">Tip: Click any image in the iframe to replace it.</span>
+    <span class="inline-tip">Tip: Click any image or background to replace it.</span>
 
     <div class="right">
       <button type="button" id="toggleEdit" class="pill">Editing: ON</button>
@@ -84,12 +84,23 @@ $iframeSrc = "/generated_sites/{$id}.html?v=" . time();
       const toggleSourceBtn = document.getElementById('toggleSource');
       const sourceArea = document.getElementById('sourceArea');
       let editEnabled = true;
-      let lastClickedImg = null;
+      let lastClicked = null; // { el, type: 'img' | 'bg' }
       let doc; // iframe document
       let isSource = false;
 
       // Helper: set status message
       function setStatus(msg) { statusEl.textContent = msg; }
+
+      function getBackgroundEl(startEl) {
+        if (!doc) return null;
+        let el = startEl;
+        while (el && el !== doc.body) {
+          const bg = doc.defaultView.getComputedStyle(el).backgroundImage;
+          if (bg && bg !== 'none' && bg.includes('url(')) return el;
+          el = el.parentElement;
+        }
+        return null;
+      }
 
       // Wait for iframe to load, then make editable & wire up events
       iframe.addEventListener('load', () => {
@@ -113,31 +124,37 @@ $iframeSrc = "/generated_sites/{$id}.html?v=" . time();
             }
           }, true);
 
-          // Click-to-replace images
+          // Click-to-replace images/backgrounds
           doc.addEventListener('click', (e) => {
+            if (!editEnabled) return;
             const img = e.target.closest('img');
-            if (img && editEnabled) {
+            const bgEl = img ? null : getBackgroundEl(e.target);
+            const target = img || bgEl;
+            if (target) {
               e.preventDefault();
-              lastClickedImg = img;
+              lastClicked = { el: target, type: img ? 'img' : 'bg' };
               imagePicker.click();
             }
           });
 
-          // Drag & drop image replace
+          // Drag & drop image/background replace
           doc.addEventListener('dragover', (e) => {
             if (!editEnabled) return;
             const img = e.target.closest('img');
-            if (img) { e.preventDefault(); }
+            const bgEl = img ? null : getBackgroundEl(e.target);
+            if (img || bgEl) { e.preventDefault(); }
           });
           doc.addEventListener('drop', (e) => {
             if (!editEnabled) return;
             const img = e.target.closest('img');
-            if (!img) return;
+            const bgEl = img ? null : getBackgroundEl(e.target);
+            const target = img || bgEl;
+            if (!target) return;
             e.preventDefault();
-            lastClickedImg = img;
+            lastClicked = { el: target, type: img ? 'img' : 'bg' };
             const file = e.dataTransfer.files && e.dataTransfer.files[0];
             if (file && file.type.startsWith('image/')) {
-              uploadAndSwap(file, img);
+              uploadAndSwap(file, lastClicked);
             }
           });
 
@@ -225,13 +242,13 @@ $iframeSrc = "/generated_sites/{$id}.html?v=" . time();
       // Image picker -> upload
       imagePicker.addEventListener('change', async (e) => {
         const file = e.target.files && e.target.files[0];
-        if (!file || !lastClickedImg) return;
-        await uploadAndSwap(file, lastClickedImg);
+        if (!file || !lastClicked) return;
+        await uploadAndSwap(file, lastClicked);
         imagePicker.value = '';
-        lastClickedImg = null;
+        lastClicked = null;
       });
 
-      async function uploadAndSwap(file, imgEl) {
+      async function uploadAndSwap(file, target) {
         setStatus('Uploading image...');
         try {
           const form = new FormData();
@@ -243,13 +260,19 @@ $iframeSrc = "/generated_sites/{$id}.html?v=" . time();
           const json = await resp.json();
           if (!resp.ok || !json.success) throw new Error(json.error || 'Upload failed');
 
-          // Keep width/height attributes if present
-          const priorW = imgEl.getAttribute('width');
-          const priorH = imgEl.getAttribute('height');
+          const newUrl = json.url + '?t=' + Date.now();
+          if (target.type === 'img') {
+            const imgEl = target.el;
+            // Keep width/height attributes if present
+            const priorW = imgEl.getAttribute('width');
+            const priorH = imgEl.getAttribute('height');
 
-          imgEl.setAttribute('src', json.url + '?t=' + Date.now());
-          if (priorW) imgEl.setAttribute('width', priorW);
-          if (priorH) imgEl.setAttribute('height', priorH);
+            imgEl.setAttribute('src', newUrl);
+            if (priorW) imgEl.setAttribute('width', priorW);
+            if (priorH) imgEl.setAttribute('height', priorH);
+          } else if (target.type === 'bg') {
+            target.el.style.backgroundImage = `url('${newUrl}')`;
+          }
 
           setStatus('Image replaced.');
         } catch (err) {
