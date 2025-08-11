@@ -248,6 +248,17 @@ $iframeSrc = "/generated_sites/{$id}.html?v=" . time();
         lastClicked = null;
       });
 
+      // Parse fetch responses safely to avoid "unexpected end of JSON" errors
+      async function parseJsonSafely(resp) {
+        const text = await resp.text();
+        try {
+          return JSON.parse(text);
+        } catch (e) {
+          console.error('Invalid JSON:', e.message, text);
+          throw new Error('Invalid JSON response');
+        }
+      }
+
       async function uploadAndSwap(file, target) {
         setStatus('Uploading image...');
         try {
@@ -257,7 +268,7 @@ $iframeSrc = "/generated_sites/{$id}.html?v=" . time();
           form.append('site_id', '<?php echo $id; ?>');
 
           const resp = await fetch('/upload_image.php', { method: 'POST', body: form, credentials: 'same-origin' });
-          const json = await resp.json();
+          const json = await parseJsonSafely(resp);
           if (!resp.ok || !json.success) throw new Error(json.error || 'Upload failed');
 
           const newUrl = json.url + '?t=' + Date.now();
@@ -299,7 +310,7 @@ $iframeSrc = "/generated_sites/{$id}.html?v=" . time();
               html
             })
           });
-          const json = await resp.json();
+          const json = await parseJsonSafely(resp);
           if (!resp.ok || !json.success) throw new Error(json.error || 'Save failed');
           setStatus('Saved ✓');
         } catch (err) {
