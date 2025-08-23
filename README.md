@@ -38,6 +38,9 @@ The prototype now includes experimental domain suggestions and Namecheap integra
 
 ## Publishing to WHM/cPanel
 Set `WHM_HOST`, `WHM_API_TOKEN`, and `WHM_ROOT_USER` in your `.env` file for deployment.
+`WHM_HOST` must include the scheme and port (e.g. `https://1.2.3.4:2087`). If your provider issues a cPanel
+"cprapid.com" hostname such as `https://192-0-2-123.cprapid.com:2087`, the helper will automatically
+convert it back to the underlying IP address to avoid DNS resolution issues.
 Use `publish_to_whm.php?upload_id=ID&domain=example.com` to create a new WHM account and upload the generated site to the account's `public_html` directory.
 
 ## Billing
