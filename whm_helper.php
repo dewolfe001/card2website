@@ -62,7 +62,22 @@ function whmApiRequest(string $endpoint, array $params = []) {
         return null;
     }
 
-    return json_decode($response, true);
+    $decoded = json_decode($response, true);
+
+    // Some WHM API calls (e.g. createacct) return an array called "result" with
+    // status information instead of the usual "metadata" block. Normalize the
+    // response so callers can consistently check $response['metadata']['result'].
+    if (isset($decoded['result']) && is_array($decoded['result'])) {
+        $first = $decoded['result'][0] ?? [];
+        if (!isset($decoded['metadata']) && isset($first['status'])) {
+            $decoded['metadata'] = [
+                'result' => $first['status'],
+                'reason' => $first['statusmsg'] ?? ''
+            ];
+        }
+    }
+
+    return $decoded;
 }
 
 function createWhmAccount(string $username, string $domain, string $password): ?array {
