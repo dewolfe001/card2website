@@ -89,25 +89,64 @@ function createWhmAccount(string $username, string $domain, string $password): ?
     return whmApiRequest('createacct', $params);
 }
 
-function uploadToCpanel(string $cpanelUser, string $cpanelPass, string $filePath, string $remoteFile = 'public_html/index.html'): bool {
-    $host = normalizeWhmHost(getenv('WHM_HOST'));
-    if (!$host) {
+function uploadToCpanel(
+    string $cpanelUser,
+    string $cpanelPass,
+    string $filePath,
+    string $remoteFile = 'public_html/index.html'
+): bool {
+    $hostUrl = normalizeWhmHost(getenv('WHM_HOST'));
+    $host    = $hostUrl ? parse_url($hostUrl, PHP_URL_HOST) : null;
+    if (!$host || !is_file($filePath)) {
         return false;
     }
-    $url = 'ftp://' . $cpanelUser . ':' . $cpanelPass . '@' . parse_url($host, PHP_URL_HOST) . '/' . $remoteFile;
-    $fp = fopen($filePath, 'r');
-    if (!$fp) {
+
+    $conn = @ftp_ssl_connect($host);
+    if (!$conn) {
+        $conn = @ftp_connect($host);
+    }
+    if (!$conn) {
         return false;
     }
-    $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, $url);
-    curl_setopt($ch, CURLOPT_UPLOAD, true);
-    curl_setopt($ch, CURLOPT_INFILE, $fp);
-    curl_setopt($ch, CURLOPT_INFILESIZE, filesize($filePath));
-    curl_setopt($ch, CURLOPT_FTP_CREATE_MISSING_DIRS, true);
-    $res = curl_exec($ch);
-    curl_close($ch);
-    fclose($fp);
-    return $res === true;
+    if (!@ftp_login($conn, $cpanelUser, $cpanelPass)) {
+        ftp_close($conn);
+        return false;
+    }
+    ftp_pasv($conn, true);
+
+    $remoteDir = dirname($remoteFile);
+    @ftp_mkdir($conn, $remoteDir);
+
+    $html = @file_get_contents($filePath);
+    if ($html === false) {
+        ftp_close($conn);
+        return false;
+    }
+
+    // Rewrite absolute references to generated_images to relative paths.
+    $html = preg_replace('#https?://[^/]+/generated_images/#', 'generated_images/', $html);
+
+    $tmp = tempnam(sys_get_temp_dir(), 'cphtml');
+    file_put_contents($tmp, $html);
+    $uploadOk = @ftp_put($conn, $remoteFile, $tmp, FTP_ASCII);
+    unlink($tmp);
+    if (!$uploadOk) {
+        ftp_close($conn);
+        return false;
+    }
+
+    if (preg_match_all('/generated_images\/([^"\'"\s>]+)/i', $html, $m)) {
+        $imgRemoteDir = $remoteDir . '/generated_images';
+        @ftp_mkdir($conn, $imgRemoteDir);
+        foreach (array_unique($m[1]) as $img) {
+            $localImg = __DIR__ . '/generated_images/' . basename($img);
+            if (is_file($localImg)) {
+                @ftp_put($conn, $imgRemoteDir . '/' . basename($img), $localImg, FTP_BINARY);
+            }
+        }
+    }
+
+    ftp_close($conn);
+    return true;
 }
 ?>
