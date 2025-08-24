@@ -82,83 +82,109 @@ function uploadToCpanel(
     string $address = ''
 ): bool {
     $hostUrl = $address ?: normalizeWhmHost(getenv('WHM_HOST'));
-    $host    = $hostUrl ? parse_url($hostUrl, PHP_URL_HOST) : null;
+    $parts   = $hostUrl ? parse_url($hostUrl) : [];
+    $scheme  = $parts['scheme'] ?? 'https';
+    $host    = $parts['host'] ?? '';
     if (!$host || !is_file($filePath)) {
         error_log('Invalid host or local file missing.');
         return false;
     }
 
-    $conn = ftp_ssl_connect($host);
-    if (!$conn) {
-        $conn = ftp_connect($host);
-    }
-    if (!$conn) {
-        error_log("Could not connect to $host");
-        return false;
-    }
+    $cpanelPort = ($scheme === 'https') ? 2083 : 2082;
+    $base       = sprintf('%s://%s:%d', $scheme, $host, $cpanelPort);
 
-    $loginOk = false;
-    for ($i = 0; $i < 5 && !$loginOk; $i++) {
-        $loginOk = ftp_login($conn, $cpanelUser, $cpanelPass);
-        if (!$loginOk) {
-            error_log("FTP login attempt $i failed for $cpanelUser");
-            sleep(1);
-        }
-    }
-    if (!$loginOk) {
-        ftp_close($conn);
-        return false;
-    }
-    ftp_pasv($conn, true);
-
-    $remoteDir = dirname($remoteFile);
-    if (!@ftp_chdir($conn, $remoteDir)) {
-        $parts = explode('/', $remoteDir);
-        $path  = '';
-        foreach ($parts as $part) {
-            if ($part === '' || $part === '.') {
-                continue;
-            }
-            $path .= '/' . $part;
-            if (!@ftp_chdir($conn, $path)) {
-                if (!ftp_mkdir($conn, $path)) {
-                    error_log('Could not create remote directory: ' . $path);
-                }
-            }
-        }
-    }
+    $remoteDir  = trim(dirname($remoteFile), '/');
+    $remoteDir  = $remoteDir === '' ? '.' : $remoteDir;
+    $remoteName = basename($remoteFile);
 
     $html = file_get_contents($filePath);
     if ($html === false) {
-        ftp_close($conn);
         return false;
     }
     $html = preg_replace('#https?://[^/]+/generated_images/#', 'generated_images/', $html);
 
     $tmp = tempnam(sys_get_temp_dir(), 'cphtml');
     file_put_contents($tmp, $html);
-    $uploadOk = ftp_put($conn, $remoteFile, $tmp, FTP_BINARY);
+
+    $apiCall = function (string $endpoint, array $params = [], array $files = []) use ($base, $cpanelUser, $cpanelPass) {
+        $url = $base . '/execute/' . ltrim($endpoint, '/');
+        if (!empty($params)) {
+            $url .= '?' . http_build_query($params);
+        }
+
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
+        curl_setopt($ch, CURLOPT_USERPWD, $cpanelUser . ':' . $cpanelPass);
+        if (!empty($files)) {
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, $files);
+        }
+
+        if (preg_match('/^https:\/\/\d+\.\d+\.\d+\.\d+/', $base)) {
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+        }
+
+        $response = curl_exec($ch);
+        if ($response === false) {
+            error_log('cURL error: ' . curl_error($ch));
+            curl_close($ch);
+            return false;
+        }
+        $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        return ($status >= 200 && $status < 300);
+    };
+
+    // Ensure the remote directory exists
+    $parts = explode('/', $remoteDir);
+    $path  = '';
+    foreach ($parts as $part) {
+        if ($part === '' || $part === '.') {
+            continue;
+        }
+        $path = ltrim($path . '/' . $part, '/');
+        $apiCall('Fileman/mkdir', ['path' => $path]);
+    }
+
+    // Upload HTML file
+    $uploadOk = $apiCall(
+        'Fileman/upload_files',
+        ['dir' => $remoteDir],
+        ['file-1' => curl_file_create($tmp, 'text/html', $remoteName)]
+    );
     unlink($tmp);
     if (!$uploadOk) {
         error_log('Upload failed for ' . $remoteFile);
-        ftp_close($conn);
         return false;
     }
 
+    // Upload images
     if (preg_match_all('/generated_images\/([^"\'\s>]+)/i', $html, $m)) {
-        $imgRemoteDir = $remoteDir . '/generated_images';
-        @ftp_mkdir($conn, $imgRemoteDir);
+        $imgDir  = trim($remoteDir . '/generated_images', '/');
+        $parts   = explode('/', $imgDir);
+        $path    = '';
+        foreach ($parts as $part) {
+            if ($part === '' || $part === '.') {
+                continue;
+            }
+            $path = ltrim($path . '/' . $part, '/');
+            $apiCall('Fileman/mkdir', ['path' => $path]);
+        }
+
         foreach (array_unique($m[1]) as $img) {
             $localImg = __DIR__ . '/generated_images/' . basename($img);
             if (is_file($localImg)) {
-                if (!ftp_put($conn, $imgRemoteDir . '/' . basename($img), $localImg, FTP_BINARY)) {
-                    error_log('Failed to upload image ' . $img);
-                }
+                $apiCall(
+                    'Fileman/upload_files',
+                    ['dir' => $imgDir],
+                    ['file-1' => curl_file_create($localImg, null, basename($img))]
+                );
             }
         }
     }
 
-    ftp_close($conn);
     return true;
 }
 ?>
