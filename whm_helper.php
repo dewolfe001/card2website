@@ -20,7 +20,273 @@ function normalizeWhmHost(?string $host): ?string {
     return sprintf('%s://%s:%d', $scheme, $hostname, $port);
 }
 
-function whmApiRequest(string $endpoint, array $params = []) {
+
+/**
+ * Call WHM JSON API with a WHM (root/reseller) API Token and extract the account IP when present.
+ *
+ * Returns a normalized array:
+ *   [
+ *     'ok'     => bool,
+ *     'status' => int,
+ *     'data'   => mixed,    // decoded JSON (array) or raw body (string) on non-JSON
+ *     'error'  => ?string,  // present on failure
+ *     'hint'   => ?string,  // extra guidance
+ *     'ip'     => ?string,  // extracted IPv4 if found (e.g., from createacct output)
+ *   ]
+ *
+ * Env:
+ *   WHM_HOST       e.g. https://server.example.com:2087  (can be IP)
+ *   WHM_API_TOKEN  WHM token created in WHM (NOT a cPanel token)
+ *   WHM_ROOT_USER  usually 'root' or your reseller username
+ */
+function whmApiRequest($endpoint, array $params = [])
+{
+    $host  = normalizeWhmHost(getenv('WHM_HOST'));
+    $token = getenv('WHM_API_TOKEN');
+    $user  = getenv('WHM_ROOT_USER') ?: 'root';
+
+    if (!$host || !$token) {
+        return [
+            'ok'     => false,
+            'status' => 0,
+            'data'   => null,
+            'error'  => 'Missing WHM_HOST or WHM_API_TOKEN',
+            'hint'   => 'Set WHM_HOST (https://host:2087) and a WHM API token from WHM » Development » Manage API Tokens.',
+            'ip'     => null,
+        ];
+    }
+
+    // Ensure scheme/port for WHM (2087)
+    $parts    = parse_url($host);
+    $scheme   = isset($parts['scheme']) ? strtolower($parts['scheme']) : 'https';
+    $hostname = isset($parts['host'])   ? $parts['host']   : $host;
+    $port     = isset($parts['port'])   ? (int)$parts['port'] : 2087;
+
+    if ($port === 2083) {
+        return [
+            'ok'     => false,
+            'status' => 0,
+            'data'   => null,
+            'error'  => 'WHM_HOST points to cPanel port :2083, not WHM :2087',
+            'hint'   => 'Use the WHM service on port 2087 for WHM JSON API calls.',
+            'ip'     => null,
+        ];
+    }
+
+    $base = $scheme . '://' . $hostname . ':' . $port;
+
+    // Add api.version=1 if caller didn’t supply it
+    if (!array_key_exists('api.version', $params)) {
+        $params['api.version'] = 1;
+    }
+
+    $endpoint = ltrim($endpoint, '/');
+    $url = rtrim($base, '/') . '/json-api/' . $endpoint;
+    if (!empty($params)) {
+        $url .= '?' . http_build_query($params);
+    }
+
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        'Authorization: whm ' . $user . ':' . $token,
+        'User-Agent: web321-whm-client/1.1'
+    ]);
+    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 20);
+
+    // If HTTPS + host is an IP, disable verify to tolerate cert mismatch
+    $isIp = filter_var($hostname, FILTER_VALIDATE_IP) !== false;
+    if ($scheme === 'https' && $isIp) {
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+    }
+
+    $response = curl_exec($ch);
+    if ($response === false) {
+        $error = curl_error($ch);
+        $info  = curl_getinfo($ch);
+        curl_close($ch);
+        return [
+            'ok'     => false,
+            'status' => 0,
+            'data'   => null,
+            'error'  => 'cURL error calling WHM: ' . $error,
+            'hint'   => 'Check connectivity to ' . $hostname . ':' . $port . ' and firewall/SSL. Info: ' . json_encode($info),
+            'ip'     => null,
+        ];
+    }
+
+    $status = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    $decoded = json_decode($response, true);
+    $ip = extractWhmIpFromDecoded($decoded);
+
+    // Heuristic: cPanel token against WHM often returns a cpanelresult envelope
+    if (is_array($decoded) && isset($decoded['cpanelresult'])) {
+        return [
+            'ok'     => false,
+            'status' => $status,
+            'data'   => $decoded,
+            'error'  => 'Got cPanel response envelope from WHM endpoint (likely wrong token type)',
+            'hint'   => 'Use a WHM API token (Authorization: whm ' . $user . ':<token>) on :2087. A cPanel account token will be rejected by WHM.',
+            'ip'     => $ip,
+        ];
+    }
+
+    if ($status < 200 || $status >= 300) {
+        $reason = null;
+        if (is_array($decoded)) {
+            if (isset($decoded['metadata']['reason'])) {
+                $reason = $decoded['metadata']['reason'];
+            } elseif (isset($decoded['error'])) {
+                $reason = $decoded['error'];
+            } elseif (isset($decoded['message'])) {
+                $reason = $decoded['message'];
+            }
+        }
+        return [
+            'ok'     => false,
+            'status' => $status,
+            'data'   => $decoded ?: $response,
+            'error'  => 'WHM API HTTP ' . $status . ($reason ? (' – ' . $reason) : ''),
+            'hint'   => 'Verify the token is a WHM token for user "' . $user . '", the endpoint exists, and your IP is not blocked by cPHulk.',
+            'ip'     => $ip,
+        ];
+    }
+
+    if (!is_array($decoded)) {
+        return [
+            'ok'     => false,
+            'status' => $status,
+            'data'   => $response,
+            'error'  => 'Non-JSON response from WHM',
+            'hint'   => 'Check endpoint: ' . $endpoint . ' and params: ' . json_encode($params),
+            'ip'     => null,
+        ];
+    }
+
+    // Normalize legacy "result" array (e.g., createacct) to a metadata-like shape
+    if (isset($decoded['result']) && is_array($decoded['result'])) {
+        $first = isset($decoded['result'][0]) && is_array($decoded['result'][0]) ? $decoded['result'][0] : [];
+        if (!isset($decoded['metadata']) && isset($first['status'])) {
+            $decoded['metadata'] = [
+                'result' => (int) $first['status'],
+                'reason' => isset($first['statusmsg']) ? $first['statusmsg'] : ''
+            ];
+        }
+        // In case IP lives here and we didn’t see it earlier
+        if ($ip === null && isset($first['options']['ip'])) {
+            $ip = $first['options']['ip'];
+        }
+        if ($ip === null && isset($first['rawout']) && is_string($first['rawout'])) {
+            $ip = extractIpFromText($first['rawout']);
+        }
+    }
+
+    return [
+        'ok'     => true,
+        'status' => $status,
+        'data'   => $decoded,
+        'error'  => null,
+        'hint'   => null,
+        'ip'     => $ip,
+    ];
+}
+
+/**
+ * Try hard to find an IPv4 in common WHM response shapes.
+ * - createacct: result[0].options.ip or result[0].rawout ("IP Address: 1.2.3.4")
+ * - accountsummary/listaccts: acct[0].ip
+ * - any shallow 'ip' fields; otherwise scan all strings for first IPv4
+ */
+function extractWhmIpFromDecoded($decoded)
+{
+    if (!is_array($decoded)) {
+        return null;
+    }
+
+    // 1) createacct style
+    if (isset($decoded['result'][0]) && is_array($decoded['result'][0])) {
+        $first = $decoded['result'][0];
+
+        if (isset($first['options']['ip']) && is_string($first['options']['ip'])) {
+            return $first['options']['ip'];
+        }
+        if (isset($first['ip']) && is_string($first['ip'])) {
+            return $first['ip'];
+        }
+        if (isset($first['rawout']) && is_string($first['rawout'])) {
+            $ip = extractIpFromText($first['rawout']);
+            if ($ip !== null) return $ip;
+        }
+        if (isset($first['output']) && is_string($first['output'])) {
+            $ip = extractIpFromText($first['output']);
+            if ($ip !== null) return $ip;
+        }
+    }
+
+    // 2) accountsummary / listaccts style
+    if (isset($decoded['acct'][0]['ip']) && is_string($decoded['acct'][0]['ip'])) {
+        return $decoded['acct'][0]['ip'];
+    }
+
+    // 3) shallow 'ip' anywhere (e.g., data.ip)
+    foreach (['ip', 'mainip'] as $k) {
+        if (isset($decoded[$k]) && is_string($decoded[$k])) {
+            return $decoded[$k];
+        }
+        if (isset($decoded['data'][$k]) && is_string($decoded['data'][$k])) {
+            return $decoded['data'][$k];
+        }
+    }
+
+    // 4) recursive scan for IPv4 in any string value
+    $ip = recursiveFindIpv4($decoded);
+    return $ip ?: null;
+}
+
+/** Extract "IP Address: x.x.x.x" or any IPv4 from a text blob. */
+function extractIpFromText($text)
+{
+    if (!is_string($text) || $text === '') {
+        return null;
+    }
+
+    // Prefer explicit "IP Address:" marker if present
+    if (preg_match('/IP\s*Address:\s*([0-9]{1,3}(?:\.[0-9]{1,3}){3})/i', $text, $m)) {
+        return $m[1];
+    }
+
+    // Fallback: first IPv4 pattern in text
+    if (preg_match('/\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b/', $text, $m)) {
+        return $m[0];
+    }
+
+    return null;
+}
+
+/** Walk array recursively and return the first IPv4 found in any string. */
+function recursiveFindIpv4($value)
+{
+    if (is_string($value)) {
+        if (preg_match('/\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b/', $value, $m)) {
+            return $m[0];
+        }
+        return null;
+    }
+    if (is_array($value)) {
+        foreach ($value as $v) {
+            $found = recursiveFindIpv4($v);
+            if ($found !== null) return $found;
+        }
+    }
+    return null;
+}
+
+
+function olde_whmApiRequest(string $endpoint, array $params = []) {
     $host = normalizeWhmHost(getenv('WHM_HOST'));
     $token = getenv('WHM_API_TOKEN');
     $user  = getenv('WHM_ROOT_USER') ?: 'root';
@@ -49,11 +315,14 @@ function whmApiRequest(string $endpoint, array $params = []) {
     }
 
     $response = curl_exec($ch);
+    error_log(print_r($response, TRUE));
+
     if ($response === false) {
         $error = curl_error($ch);
         curl_close($ch);
         throw new RuntimeException('cURL error calling WHM: ' . $error);
     }
+    
 
     $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
@@ -93,9 +362,16 @@ function uploadToCpanel(
     string $cpanelUser,
     string $cpanelPass,
     string $filePath,
-    string $remoteFile = 'public_html/index.html'
+    string $remoteFile = 'public_html/index.html',
+    string $address = ''
 ): bool {
-    $hostUrl = normalizeWhmHost(getenv('WHM_HOST'));
+    if ($address == '') {
+        $hostUrl = normalizeWhmHost(getenv('WHM_HOST'));
+    }
+    else {
+        $hostUrl = $address;
+    }
+
     $host    = $hostUrl ? parse_url($hostUrl, PHP_URL_HOST) : null;
     if (!$host || !is_file($filePath)) {
         return false;
@@ -128,6 +404,7 @@ function uploadToCpanel(
     @ftp_mkdir($conn, $remoteDir);
 
     $html = @file_get_contents($filePath);
+    error_log('FTPing about ' . strlen($html) . ' chars.');
     if ($html === false) {
         ftp_close($conn);
         return false;
@@ -145,12 +422,13 @@ function uploadToCpanel(
         return false;
     }
 
-    if (preg_match_all('/generated_images\/([^"\'"\s>]+)/i', $html, $m)) {
+    if (preg_match_all('/generated_images\/([^"\'\s>]+)/i', $html, $m)) {
         $imgRemoteDir = $remoteDir . '/generated_images';
         @ftp_mkdir($conn, $imgRemoteDir);
         foreach (array_unique($m[1]) as $img) {
             $localImg = __DIR__ . '/generated_images/' . basename($img);
             if (is_file($localImg)) {
+                error_log('FTPing about ' . $img);                
                 @ftp_put($conn, $imgRemoteDir . '/' . basename($img), $localImg, FTP_BINARY);
             }
         }
