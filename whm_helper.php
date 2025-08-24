@@ -108,7 +108,17 @@ function uploadToCpanel(
     if (!$conn) {
         return false;
     }
-    if (!@ftp_login($conn, $cpanelUser, $cpanelPass)) {
+    // Newly created cPanel accounts can take a moment before the FTP service
+    // recognises the credentials. Retry the login a few times before failing.
+    $loginOk = false;
+    for ($i = 0; $i < 5 && !$loginOk; $i++) {
+        $loginOk = @ftp_login($conn, $cpanelUser, $cpanelPass);
+        if (!$loginOk) {
+            sleep(1); // wait briefly before the next attempt
+        }
+    }
+    if (!$loginOk) {
+        error_log('FTP Login Issue for ' . $cpanelUser);
         ftp_close($conn);
         return false;
     }
