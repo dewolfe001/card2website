@@ -12,10 +12,12 @@ if ($domain === '' || $uploadId === 0) {
 $username = substr(preg_replace('/[^a-z0-9]/i', '', explode('.', $domain)[0]), 0, 8);
 $password = bin2hex(random_bytes(8));
 
-$create = createWhmAccount($username, $domain, $password);
-$created = $create && ($create['metadata']['result'] ?? 0) == 1;
+$create  = createWhmAccount($username, $domain, $password);
+$created = $create['ok'] && (($create['data']['metadata']['result'] ?? 0) == 1);
 
-error_log(__LINE__." - ".print_r($created, TRUE));
+if (!$created) {
+    error_log('WHM account creation failed: ' . ($create['error'] ?? 'unknown error'));
+}
 
 $uploadSuccess = false;
 if ($created) {
