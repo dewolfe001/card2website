@@ -15,6 +15,9 @@ $password = bin2hex(random_bytes(8));
 $create  = createWhmAccount($username, $domain, $password);
 $created = $create['ok'] && (($create['data']['metadata']['result'] ?? 0) == 1);
 
+error_log(__LINE__." - ".print_r($create, TRUE));
+error_log(__LINE__." - ".print_r($created, TRUE));
+
 if (!$created) {
     error_log('WHM account creation failed: ' . ($create['error'] ?? 'unknown error'));
 }
