@@ -15,10 +15,13 @@ $password = bin2hex(random_bytes(8));
 $create = createWhmAccount($username, $domain, $password);
 $created = $create && ($create['metadata']['result'] ?? 0) == 1;
 
+error_log(__LINE__." - ".print_r($created, TRUE));
+
 $uploadSuccess = false;
 if ($created) {
     $file = __DIR__ . '/generated_sites/' . $uploadId . '.html';
     if (file_exists($file)) {
+        sleep(2);
         $uploadSuccess = uploadToCpanel($username, $password, $file);
     }
 }
