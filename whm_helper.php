@@ -446,4 +446,38 @@ function uploadToCpanel(
     ftp_close($conn);
     return true;
 }
+
+function callManifest(string $username, int $id): bool {
+    $host = getenv('WHM_HOST');
+    if (!$host) {
+        error_log('WHM_HOST not set.');
+        return false;
+    }
+
+    $parts = parse_url($host);
+    $scheme = $parts['scheme'] ?? 'https';
+    $baseHost = $parts['host'] ?? $host;
+    $baseUrl = $scheme . '://' . $baseHost;
+
+    $url = sprintf('%s/~%s/manifest.php?id=%d', $baseUrl, rawurlencode($username), $id);
+
+    $opts = [
+        'http' => [
+            'timeout' => 10,
+        ]
+    ];
+    if ($scheme === 'https') {
+        $opts['ssl'] = [
+            'verify_peer' => false,
+            'verify_peer_name' => false,
+        ];
+    }
+    $context = stream_context_create($opts);
+    $result = @file_get_contents($url, false, $context);
+    if ($result === false) {
+        error_log('Manifest request failed for ' . $url);
+        return false;
+    }
+    return true;
+}
 ?>
