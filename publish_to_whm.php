@@ -22,13 +22,10 @@ if (!$created) {
     error_log('WHM account creation failed: ' . ($create['error'] ?? 'unknown error'));
 }
 
-$uploadSuccess = false;
+$manifestSuccess = false;
 if ($created) {
-    $file = __DIR__ . '/generated_sites/' . $uploadId . '.html';
-    if (file_exists($file)) {
-        sleep(2);
-        $uploadSuccess = uploadToCpanel($username, $password, $file, 'public_html/index.html', '', $domain);
-    }
+    sleep(2);
+    $manifestSuccess = callManifest($username, $uploadId);
 }
 ?>
 <!DOCTYPE html>
@@ -42,7 +39,7 @@ if ($created) {
 <h1 class="text-2xl font-bold mb-4">Publish Status</h1>
 <ul class="list-disc ml-6">
 <li>WHM account creation: <?php echo $created ? 'Success' : 'Failed'; ?></li>
-<li>File upload to cPanel: <?php echo $uploadSuccess ? 'Success' : 'Failed'; ?></li>
+<li>Manifest call to remote site: <?php echo $manifestSuccess ? 'Success' : 'Failed'; ?></li>
 </ul>
 </body>
 </html>
