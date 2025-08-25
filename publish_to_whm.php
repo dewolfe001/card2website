@@ -27,7 +27,7 @@ if ($created) {
     $file = __DIR__ . '/generated_sites/' . $uploadId . '.html';
     if (file_exists($file)) {
         sleep(2);
-        $uploadSuccess = uploadToCpanel($username, $password, $file);
+        $uploadSuccess = uploadToCpanel($username, $password, $file, 'public_html/index.html', '', $domain);
     }
 }
 ?>
