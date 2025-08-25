@@ -79,7 +79,8 @@ function uploadToCpanel(
     string $cpanelPass,
     string $filePath,
     string $remoteFile = 'public_html/index.html',
-    string $address = ''
+    string $address = '',
+    string $domain = ''
 ): bool {
     $hostUrl = $address ?: normalizeWhmHost(getenv('WHM_HOST'));
     $host    = $hostUrl ? parse_url($hostUrl, PHP_URL_HOST) : '';
@@ -110,7 +111,8 @@ function uploadToCpanel(
         unlink($tmp);
         return false;
     }
-    if (!@ftp_login($conn, $cpanelUser, $cpanelPass)) {
+    $ftpUser = $domain ? $cpanelUser . '@' . $domain : $cpanelUser;
+    if (!@ftp_login($conn, $ftpUser, $cpanelPass)) {
         error_log('FTP login failed');
         ftp_close($conn);
         unlink($tmp);
