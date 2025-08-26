@@ -448,16 +448,16 @@ function uploadToCpanel(
 }
 
 function callManifest(string $username, int $id, string $domain): bool {
-    $host = getenv('WHM_HOST');
-    if (!$host) {
+    $hostUrl = normalizeWhmHost(getenv('WHM_HOST'));
+    if (!$hostUrl) {
         error_log('WHM_HOST not set.');
         return false;
     }
 
-    $parts = parse_url($host);
-    $scheme = $parts['scheme'] ?? 'https';
-    $baseHost = $parts['host'] ?? $host;
-    $baseUrl = $scheme . '://' . $baseHost;
+    $parts    = parse_url($hostUrl);
+    $scheme   = $parts['scheme'] ?? 'https';
+    $baseHost = $parts['host'] ?? $hostUrl;
+    $baseUrl  = $scheme . '://' . $baseHost;
 
     $url = sprintf(
         '%s/~%s/manifest.php?id=%d&domain=%s',
@@ -479,9 +479,10 @@ function callManifest(string $username, int $id, string $domain): bool {
         ];
     }
     $context = stream_context_create($opts);
-    $result = @file_get_contents($url, false, $context);
+    $result  = @file_get_contents($url, false, $context);
     if ($result === false) {
-        error_log('Manifest request failed for ' . $url);
+        $err = error_get_last();
+        error_log('Manifest request failed for ' . $url . ($err ? ' - ' . $err['message'] : ''));
         return false;
     }
     return true;
