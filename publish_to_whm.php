@@ -25,7 +25,7 @@ if (!$created) {
 $manifestSuccess = false;
 if ($created) {
     sleep(2);
-    $manifestSuccess = callManifest($username, $uploadId);
+    $manifestSuccess = callManifest($username, $uploadId, $domain);
 }
 ?>
 <!DOCTYPE html>

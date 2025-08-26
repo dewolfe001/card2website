@@ -447,7 +447,7 @@ function uploadToCpanel(
     return true;
 }
 
-function callManifest(string $username, int $id): bool {
+function callManifest(string $username, int $id, string $domain): bool {
     $host = getenv('WHM_HOST');
     if (!$host) {
         error_log('WHM_HOST not set.');
@@ -459,7 +459,13 @@ function callManifest(string $username, int $id): bool {
     $baseHost = $parts['host'] ?? $host;
     $baseUrl = $scheme . '://' . $baseHost;
 
-    $url = sprintf('%s/~%s/manifest.php?id=%d', $baseUrl, rawurlencode($username), $id);
+    $url = sprintf(
+        '%s/~%s/manifest.php?id=%d&domain=%s',
+        $baseUrl,
+        rawurlencode($username),
+        $id,
+        rawurlencode($domain)
+    );
 
     $opts = [
         'http' => [
