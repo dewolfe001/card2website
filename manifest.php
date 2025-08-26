@@ -60,6 +60,53 @@ function isExternal(string $url): bool
     return (bool) preg_match('#^(?:[a-z][a-z0-9+.-]*:|//)#i', $url);
 }
 
+function extractBgImageUrls(string $css): array
+{
+    $urls = [];
+    if (preg_match_all('/background(?:-image)?\s*:[^;]*;/i', $css, $props)) {
+        foreach ($props[0] as $prop) {
+            if (preg_match_all('/url\(([^)]+)\)/i', $prop, $matches)) {
+                foreach ($matches[1] as $url) {
+                    $url = trim($url, "'\" \t\n\r");
+                    if ($url !== '') {
+                        $urls[] = $url;
+                    }
+                }
+            }
+        }
+    }
+    return $urls;
+}
+
+function processAsset(string $path, string $baseDir, array &$files, array &$fileEntries, string $baseUrl, string $siteRel, array &$cssFiles): void
+{
+    $path = trim((string) $path);
+    if ($path === '') {
+        return;
+    }
+    $path = parse_url($path, PHP_URL_PATH);
+    if (!$path || isExternal($path)) {
+        return;
+    }
+
+    if ($path[0] === '/') {
+        $rel = normalizePath(ltrim($path, '/'));
+        $url = buildUrl($baseUrl, $rel);
+    } else {
+        $baseDir = $baseDir === '' ? '' : $baseDir . '/';
+        $rel = normalizePath($baseDir . $path);
+        $url = buildUrl($baseUrl, $siteRel . '/' . $rel);
+    }
+
+    if (!in_array($rel, $files, true)) {
+        $files[] = $rel;
+        $fileEntries[] = ['url' => $url, 'save_as' => $rel];
+        if (strtolower(pathinfo($rel, PATHINFO_EXTENSION)) === 'css') {
+            $cssFiles[] = $rel;
+        }
+    }
+}
+
 $files = [];
 $fileEntries = [];
 
@@ -77,6 +124,7 @@ $dom->loadHTML($htmlContent);
 libxml_clear_errors();
 
 $assetPaths = [];
+$cssFiles = [];
 
 foreach ($dom->getElementsByTagName('img') as $el) {
     $assetPaths[] = $el->getAttribute('src');
@@ -91,27 +139,46 @@ foreach ($dom->getElementsByTagName('link') as $el) {
     }
 }
 
+foreach ($dom->getElementsByTagName('*') as $el) {
+    if ($el->hasAttribute('style')) {
+        foreach (extractBgImageUrls($el->getAttribute('style')) as $url) {
+            $assetPaths[] = $url;
+        }
+    }
+}
+foreach ($dom->getElementsByTagName('style') as $el) {
+    foreach (extractBgImageUrls($el->textContent) as $url) {
+        $assetPaths[] = $url;
+    }
+}
+
 foreach ($assetPaths as $path) {
-    $path = trim((string) $path);
-    if ($path === '') {
+    processAsset($path, '', $files, $fileEntries, $baseUrl, $siteRel, $cssFiles);
+}
+
+$processedCss = [];
+while ($cssFiles) {
+    $cssRel = array_shift($cssFiles);
+    if (isset($processedCss[$cssRel])) {
         continue;
     }
-    $path = parse_url($path, PHP_URL_PATH);
-    if (!$path || isExternal($path)) {
-        continue;
+    $processedCss[$cssRel] = true;
+
+    $cssFullPath = $sitePath . '/' . $cssRel;
+    if (!file_exists($cssFullPath)) {
+        $cssFullPath = $root . '/' . $cssRel;
+        if (!file_exists($cssFullPath)) {
+            continue;
+        }
     }
 
-    if ($path[0] === '/') {
-        $rel = normalizePath(ltrim($path, '/'));
-        $url = buildUrl($baseUrl, $rel);
-    } else {
-        $rel = normalizePath($path);
-        $url = buildUrl($baseUrl, $siteRel . '/' . $rel);
+    $cssContent = file_get_contents($cssFullPath);
+    $baseDir = dirname($cssRel);
+    if ($baseDir === '.') {
+        $baseDir = '';
     }
-
-    if (!in_array($rel, $files, true)) {
-        $files[] = $rel;
-        $fileEntries[] = ['url' => $url, 'save_as' => $rel];
+    foreach (extractBgImageUrls($cssContent) as $url) {
+        processAsset($url, $baseDir, $files, $fileEntries, $baseUrl, $siteRel, $cssFiles);
     }
 }
 
