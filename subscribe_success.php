@@ -20,8 +20,8 @@ if ($sessionId) {
             }
         }
         if ($userId) {
-            $stmt = $pdo->prepare('INSERT INTO billing_subscriptions (user_id, stripe_customer_id, stripe_subscription_id, plan_type, status) VALUES (?, ?, ?, ?, ?)');
-            $stmt->execute([$userId, $session['customer'], $session['subscription'], 'hosting', 'active']);
+            $stmt = $pdo->prepare('INSERT INTO billing_subscriptions (user_id, stripe_customer_id, stripe_subscription_id, plan_type, domain, status) VALUES (?, ?, ?, ?, ?, ?)');
+            $stmt->execute([$userId, $session['customer'], $session['subscription'], 'hosting', $domain, 'active']);
         }
     }
 }

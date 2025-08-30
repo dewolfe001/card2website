@@ -24,7 +24,11 @@ $priceId = getenv($plan === 'yearly' ? 'STRIPE_PRICE_ID_YEARLY' : 'STRIPE_PRICE_
 $baseUrl = (isset($_SERVER['HTTPS']) ? 'https://' : 'http://') . $_SERVER['HTTP_HOST'];
 $successUrl = $baseUrl . '/subscribe_success.php?domain=' . urlencode($domain) . '&upload_id=' . $uploadId;
 $cancelUrl = $baseUrl . '/payment.php?domain=' . urlencode($domain) . '&upload_id=' . $uploadId;
-$session = createCheckoutSession($user['email'], $priceId, $successUrl, $cancelUrl, (string)$userId);
+$custStmt = $pdo->prepare('SELECT stripe_customer_id FROM billing_subscriptions WHERE user_id = ? ORDER BY id DESC LIMIT 1');
+$custStmt->execute([$userId]);
+$existing = $custStmt->fetch();
+$customerId = $existing['stripe_customer_id'] ?? null;
+$session = createCheckoutSession($user['email'], $priceId, $successUrl, $cancelUrl, (string)$userId, $customerId);
 if ($session && isset($session['url'])) {
     header('Location: ' . $session['url']);
     exit;

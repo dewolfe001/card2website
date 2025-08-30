@@ -294,6 +294,11 @@ function createWhmAccount(string $username, string $domain, string $password): ?
     return whmApiRequest('createacct', $params);
 }
 
+function whmSuspendAccount(string $domain): ?array {
+    $username = substr(preg_replace('/[^a-z0-9]/i', '', explode('.', $domain)[0]), 0, 8);
+    return whmApiRequest('suspendacct', ['user' => $username]);
+}
+
 function uploadToCpanel(
     string $cpanelUser,
     string $cpanelPass,
