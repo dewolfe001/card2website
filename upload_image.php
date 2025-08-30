@@ -5,6 +5,7 @@ session_start();
 header('Content-Type: application/json; charset=utf-8');
 
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/auth.php';
 
 function fail(string $msg, int $code = 400): void {
     http_response_code($code);
@@ -96,18 +97,20 @@ if (!move_uploaded_file($_FILES['image']['tmp_name'], $destPath)) {
     fail('Failed to store file', 500);
 }
 
+// Build public URL for image
+$publicUrl = '/uploads/site_images/' . $siteId . '/' . $basename;
+$fileUrl = (isset($_SERVER['HTTPS']) ? 'https://' : 'http://') . $_SERVER['HTTP_HOST'] . $publicUrl;
+
 // Record uploaded image
 try {
-    $stmt = $pdo->prepare('INSERT INTO website_images (upload_id, filename, created_at) VALUES (?, ?, NOW())');
-    $stmt->execute([$siteId, $basename]);
+    $stmt = $pdo->prepare('INSERT INTO website_images (upload_id, user_id, filename, file_url, created_at) VALUES (?, ?, ?, ?, NOW())');
+    $stmt->execute([$siteId, current_user_id(), $basename, $fileUrl]);
 } catch (Throwable $e) {
     // If DB insert fails we still return the image URL, but log the error
     error_log('Image insert failed: ' . $e->getMessage());
 }
 
 // Return public URL (adjust domain/path mapping for your hosting)
-$publicUrl = '/uploads/site_images/' . $siteId . '/' . $basename;
-
 echo json_encode([
     'success' => true,
     'url'     => $publicUrl

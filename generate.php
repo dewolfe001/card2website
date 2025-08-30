@@ -9,6 +9,7 @@ error_log("FILES - ".print_r($_FILES, TRUE));
 require 'config.php';
 require_once 'openai_helper.php';
 require_once 'gemini_helper.php';
+require_once 'auth.php';
 
 $baseUrl = (isset($_SERVER['HTTPS']) ? 'https://' : 'http://') . $_SERVER['HTTP_HOST'];
 
@@ -144,8 +145,13 @@ if (!empty($_FILES['website_images']['name'][0])) {
                 $name = time() . '_' . preg_replace('/[^A-Za-z0-9._-]/', '_', $name);
                 $dest = $imgDir . $name;
                 if (move_uploaded_file($tmp, $dest)) {
-                    $stmt = $pdo->prepare('INSERT INTO website_images (upload_id, filename, created_at) VALUES (?, ?, NOW())');
-                    $stmt->execute([$id, $name]);
+                    $stmt = $pdo->prepare('INSERT INTO website_images (upload_id, user_id, filename, file_url, created_at) VALUES (?, ?, ?, ?, NOW())');
+                    $stmt->execute([
+                        $id,
+                        current_user_id(),
+                        $name,
+                        BASEURL . '/uploads/site_images/' . $id . '/' . $name
+                    ]);
                     $uploadedFiles[] = $name;
                 }
             }

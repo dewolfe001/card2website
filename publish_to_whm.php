@@ -95,6 +95,7 @@ function createZipFromDirectory(string $sourceDir): ?string {
 
 if (!function_exists('createDeploymentPackage')) {
     function createDeploymentPackage(int $uploadId): array {
+        global $pdo;
         $packageDir = __DIR__ . '/deployment_packages';
         if (!is_dir($packageDir)) {
             mkdir($packageDir, 0755, true);
@@ -147,9 +148,37 @@ if (!function_exists('createDeploymentPackage')) {
                 }
             }
         }
-        
+
+        // Include generated images referenced for this upload
+        $stmt = $pdo->prepare('SELECT filename FROM website_images WHERE upload_id = ?');
+        $stmt->execute([$uploadId]);
+        $dbImages = $stmt->fetchAll(PDO::FETCH_COLUMN);
+        if ($dbImages) {
+            $srcImgDir = __DIR__ . '/uploads/site_images/' . $uploadId;
+            $destImgDir = $packagePath . '/generated_images';
+            if (!is_dir($destImgDir)) {
+                mkdir($destImgDir, 0755, true);
+            }
+            foreach ($dbImages as $img) {
+                $src = $srcImgDir . '/' . $img;
+                if (file_exists($src)) {
+                    copy($src, $destImgDir . '/' . $img);
+                    $copiedFiles[] = 'generated_images/' . $img;
+                }
+            }
+
+            // Update HTML to reference relative image paths
+            $packageIndex = $packagePath . '/index.html';
+            if (file_exists($packageIndex)) {
+                $html = file_get_contents($packageIndex);
+                $pattern = '#https?://[^/]+/uploads/site_images/' . $uploadId . '/#';
+                $html = preg_replace($pattern, '/generated_images/', $html);
+                file_put_contents($packageIndex, $html);
+            }
+        }
+
         // Read HTML content to analyze what was copied
-        $htmlContent = file_get_contents($htmlFile);
+        $htmlContent = file_exists($packagePath . '/index.html') ? file_get_contents($packagePath . '/index.html') : '';
         $imageFiles = array_filter($copiedFiles, function($file) {
             return preg_match('/\.(jpg|jpeg|png|gif|webp|svg)$/i', $file);
         });

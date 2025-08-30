@@ -29,7 +29,7 @@ This repository contains a simple PHP prototype based on the PRD. The app lets u
 - `uploads/` – uploaded images (ignored in Git)
 - `generated_sites/` – generated HTML output (ignored in Git)
 - `naics_classifications` – table storing NAICS code results
-- `website_images` – table storing additional images uploaded for a site
+- `website_images` – table storing additional images uploaded for a site along with user and URL metadata
 
 Users can review the extracted text on the preview page, make corrections, and generate the site from their edited version. The edits are stored in the new `ocr_edits` table.
 
