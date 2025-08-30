@@ -84,6 +84,7 @@ CREATE TABLE IF NOT EXISTS billing_subscriptions (
     stripe_customer_id VARCHAR(255) NOT NULL,
     stripe_subscription_id VARCHAR(255) NOT NULL,
     plan_type VARCHAR(50),
+    domain VARCHAR(255),
     status VARCHAR(50),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

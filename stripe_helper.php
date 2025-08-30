@@ -43,15 +43,19 @@ function stripeRequest(string $method, string $endpoint, array $params = []) {
     return json_decode($response, true);
 }
 
-function createCheckoutSession(string $customerEmail, string $priceId, string $successUrl, string $cancelUrl, ?string $clientReferenceId = null) {
+function createCheckoutSession(string $customerEmail, string $priceId, string $successUrl, string $cancelUrl, ?string $clientReferenceId = null, ?string $customerId = null) {
     $separator = (strpos($successUrl, '?') === false) ? '?' : '&';
     $params = [
         'mode' => 'subscription',
-        'customer_email' => $customerEmail,
         'line_items' => [[ 'price' => $priceId, 'quantity' => 1 ]],
         'success_url' => $successUrl . $separator . 'session_id={CHECKOUT_SESSION_ID}',
         'cancel_url' => $cancelUrl
     ];
+    if ($customerId) {
+        $params['customer'] = $customerId;
+    } else {
+        $params['customer_email'] = $customerEmail;
+    }
     if ($clientReferenceId !== null) {
         $params['client_reference_id'] = $clientReferenceId;
     }
