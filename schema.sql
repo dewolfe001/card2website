@@ -93,8 +93,11 @@ CREATE TABLE IF NOT EXISTS billing_subscriptions (
 CREATE TABLE IF NOT EXISTS website_images (
     id INT AUTO_INCREMENT PRIMARY KEY,
     upload_id INT NOT NULL,
+    user_id INT DEFAULT NULL,
     filename VARCHAR(255) NOT NULL,
+    file_url VARCHAR(255) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (upload_id) REFERENCES uploads(id)
+    FOREIGN KEY (upload_id) REFERENCES uploads(id),
+    FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
