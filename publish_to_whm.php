@@ -306,7 +306,7 @@ if (!function_exists('uploadFileToHosting')) {
             CURLOPT_HTTPAUTH => CURLAUTH_BASIC,
             CURLOPT_USERPWD => $username . ':' . $password,
             CURLOPT_HTTPHEADER => [
-                'User-Agent: BusinessCard2Website-Deploy/1.0'
+                'User-Agent: Business-Card-to-Website-Deploy/1.0'
             ],
             CURLOPT_CONNECTTIMEOUT => 30,
             CURLOPT_TIMEOUT => 120

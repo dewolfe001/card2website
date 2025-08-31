@@ -10,12 +10,15 @@ require 'config.php';
 require_once 'openai_helper.php';
 require_once 'gemini_helper.php';
 require_once 'auth.php';
+require_once 'i18n.php';
 
 $baseUrl = (isset($_SERVER['HTTPS']) ? 'https://' : 'http://') . $_SERVER['HTTP_HOST'];
 
 define('BASEURL', $baseUrl);
 
 $additional_incr = 1;
+$inputLang = getAppLanguage();
+$outputLang = getOutputLanguage();
 
 $id = isset($_GET['id']) ? (int)$_GET['id'] : (isset($_POST['id']) ? (int)$_POST['id'] : 0);
 
@@ -346,7 +349,7 @@ error_log("Prompt - businessData ".print_r($businessData, TRUE)."\n --- \n".prin
 
 // get the images 
 
-$img_prompt = generateMarketingOpenAI($businessData, $additional);
+$img_prompt = generateMarketingOpenAI($businessData, $additional, $outputLang);
 $context = json_decode(file_get_contents($contextPath), true);
 $context['img_prompt'] = $img_prompt;
 file_put_contents($contextPath, json_encode($context));
@@ -395,7 +398,7 @@ if ($square_image) {
     $additional .= $additional_incr++.". - This supplied images should be added into the web design and put low on the page, beside the contact information at the bottom. It should be added as 'background: cover; height: 100%; background-position: top' CSS styling, to limit how much white space ends up in the HTML display. Here's the JSON encoded information about this image's file_path and its url - ".json_encode($square_image)." \n";
 }
 
-$result = generateWebsiteFromData($businessData, $additional, $layoutImageUrl);
+$result = generateWebsiteFromData($businessData, $additional, $layoutImageUrl, $inputLang, $outputLang);
 error_log("Generated - ".print_r($result, TRUE));
 $html = $result['html_code'] ?? null;
 

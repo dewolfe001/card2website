@@ -1,6 +1,7 @@
 <?php
 require 'config.php';
 require_once 'openai_helper.php';
+require_once 'i18n.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!isset($_FILES['card_image']) || $_FILES['card_image']['error'] !== UPLOAD_ERR_OK) {
@@ -27,11 +28,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // Extract text using OpenAI's vision capabilities
     $ocrError = null;
-    $ocrText = sendImageToOpenAI($targetFile, $ocrError);
+    $inputLang = getAppLanguage();
+    $ocrText = sendImageToOpenAI($targetFile, $inputLang, $ocrError);
 
     // Analyze the business card with OpenAI to get structured data
     $analysisError = null;
-    $analysis = analyzeBusinessCardStructured($targetFile, $analysisError);
+    $analysis = analyzeBusinessCardStructured($targetFile, $inputLang, $analysisError);
 
     $json = [];
     if ($analysis) {

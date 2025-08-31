@@ -50,7 +50,7 @@ function openaiChatRequest(array $postData, ?string &$error = null): ?string {
     return null;
 }
 
-function sendImageToOpenAI(string $imagePath, ?string &$error = null) {
+function sendImageToOpenAI(string $imagePath, string $inputLanguage = 'en', ?string &$error = null) {
     if (!file_exists($imagePath)) {
         $error = 'File not found';
         return null;
@@ -85,7 +85,7 @@ function sendImageToOpenAI(string $imagePath, ?string &$error = null) {
                 [
                 'role' => 'user',
                 'content' => [
-                    ['type' => 'text', 'text' => 'Please extract the business card text into structured contact details (name, title, email, phone, company, address). Extract the business card information from this image.'],
+                    ['type' => 'text', 'text' => 'Please extract the business card text into structured contact details (name, title, email, phone, company, address). The card text is primarily in ' . $inputLanguage . '.'],
                     ['type' => 'image_url', 'image_url' => ['url' => 'data:' . $mimeType . ';base64,' . $imageData]]
                 ]
                 ]
@@ -194,7 +194,7 @@ if ($result) {
 }
 */
 
-function analyzeBusinessCardStructured(string $imagePath, ?string &$error = null): ?array {
+function analyzeBusinessCardStructured(string $imagePath, string $inputLanguage = 'en', ?string &$error = null): ?array {
     if (!file_exists($imagePath)) {
         $error = 'File not found';
         return null;
@@ -206,7 +206,7 @@ function analyzeBusinessCardStructured(string $imagePath, ?string &$error = null
         return null;
     }
 
-    $system = 'You are an expert at analyzing business cards and extracting structured data. You will receive a business card image and need to extract all relevant information in a specific JSON format.';
+    $system = 'You are an expert at analyzing business cards and extracting structured data. The card text is primarily in ' . $inputLanguage . '. You will receive a business card image and need to extract all relevant information in a specific JSON format.';
     $userPrompt = "Please analyze this business card image and extract all relevant information. Parse the image to identify:\n\n1. All text content (names, titles, company, contact info)\n2. Color palette (primary and secondary colors in hex format)\n3. Font characteristics (serif/sans-serif, weight, style observations)\n4. Logo details (description, position, colors). Extrapolate the logo from the business card and add a logo detail: base64 encoded cropped version of the logo availale for use by this application. \n5. Layout and design elements\n6. Industry/business type based on content\n\nRespond ONLY with valid JSON in this exact format:\n{\n  \"business_info\": {\n    \"company_name\": \"string\",\n    \"person_name\": \"string\",\n    \"title\": \"string\",\n    \"phone\": \"string\",\n    \"email\": \"string\",\n    \"website\": \"string\",\n    \"address\": {\n      \"street\": \"string\",\n      \"city\": \"string\",\n      \"state\": \"string\",\n      \"zip\": \"string\",\n      \"country\": \"string\"\n    },\n    \"industry\": \"string\",\n    \"services\": [\"string\"]\n  },\n  \"design_elements\": {\n    \"colors\": {\n      \"primary\": \"#hexcode\",\n      \"secondary\": \"#hexcode\",\n      \"accent\": \"#hexcode\",\n      \"text\": \"#hexcode\"\n    },\n    \"fonts\": {\n      \"primary_font_style\": \"serif|sans-serif|script|display\",\n      \"font_weight\": \"light|normal|bold\",\n      \"characteristics\": \"string description\"\n    },\n    \"logo\": {\n      \"present\": true|false,\n      \"description\": \"string\",\n      \"position\": \"string\",\n      \"style\": \"string\"\n      \"base64\": \"string\"\n     },\n    \"layout\": {\n      \"style\": \"modern|traditional|creative|minimal\",\n      \"orientation\": \"horizontal|vertical\"\n    }\n  }\n}";
 
     $postData = [
@@ -238,17 +238,17 @@ function analyzeBusinessCardStructured(string $imagePath, ?string &$error = null
 }
 
 // the preamble
-function generateMarketingOpenAI(string $prompt, ?string &$error = null) {
+function generateMarketingOpenAI(string $prompt, string $additional = '', string $outputLanguage = 'en', ?string &$error = null) {
 
     $postData = [
         'model' => 'gpt-4.1-mini',
         'messages' => [
             [
             "role" => "system",
-            "content" => "You are an expert marketer who knows how to deliver excellent communications that rank well in search engines; and attract users to engage with the subject matter. Strip out the markdown code to make the text more clear. Strip the questions out of the user prompt to have a solid body of information to work with."
-            ],            
-            
-            ['role' => 'user', 'content' => $prompt]
+            "content" => "You are an expert marketer who knows how to deliver excellent communications that rank well in search engines; and attract users to engage with the subject matter. Respond in " . $outputLanguage . ". Strip out the markdown code to make the text more clear. Strip the questions out of the user prompt to have a solid body of information to work with."
+            ],
+
+            ['role' => 'user', 'content' => $prompt . "\n" . $additional]
         ],
         'max_tokens' => 1200,
         // 'temperature' => 0.2
@@ -580,7 +580,7 @@ function classifyNaics(string $text, ?string &$error = null): ?array {
 
 // The Big Kahuna...
 
-function generateWebsiteFromData($businessData, string $additional = '', ?string $layoutImageUrl = null, ?string &$error = null) {
+function generateWebsiteFromData($businessData, string $additional = '', ?string $layoutImageUrl = null, string $inputLanguage = 'en', string $outputLanguage = 'en', ?string &$error = null) {
     // Normalize $businessData to a JSON-ish string if an array/object is passed
     if (is_array($businessData) || is_object($businessData)) {
         $businessData = json_encode($businessData, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
@@ -594,12 +594,13 @@ You are a senior web developer, UX designer, and technical SEO specialist.
 You produce production-grade, responsive one-page websites using semantic HTML5, accessibility best practices (WCAG 2.2 AA), and Tailwind CSS.
 You rigorously apply structured data with multiple JSON-LD graphs to maximize rich results, especially for local businesses.
 You consider Core Web Vitals (LCP, CLS, INP), responsive images, and minimal blocking resources. Your code is clean, portable, and standards-compliant.
+All textual output must be in {$outputLanguage}.
 Do not include explanations. Only follow the schema and produce valid JSON per the provided response schema.
 SYS;
 
     // --- User prompt: mobile-first, large-screen polish, and HEAVY schema ---
     $userContent = <<<USR
-Using the following business card data, create a professional one-page website that is excellent on small viewports and scales beautifully to large viewports.
+Using the following business card data (written in {$inputLanguage}), create a professional one-page website that is excellent on small viewports and scales beautifully to large viewports.
 
 BUSINESS DATA:
 {$businessData}

@@ -1,12 +1,13 @@
 <?php
+require_once 'i18n.php';
 // Landing page with upload form styled to match the demo design
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="<?=getAppLanguage()?>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BusinessCard to Website</title>
+    <title><?=__('business_card_to_website')?></title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@600;700&display=swap" rel="stylesheet">
     <style>
@@ -16,8 +17,8 @@
 </head>
 <body class="bg-gray-50 text-gray-800">
     <header class="bg-[#1a365d] text-white py-8 mb-12">
-        <h1 class="text-3xl font-display font-bold text-center">Business Card to Website</h1>
-        <p class="mt-2 text-center text-[#bcccdc]">Turn your business card into a professional website</p>
+        <h1 class="text-3xl font-display font-bold text-center"><?=__('business_card_to_website')?></h1>
+        <p class="mt-2 text-center text-[#bcccdc]"><?=__('tagline')?></p>
     </header>
     <main class="container mx-auto px-4">
         <section class="flex flex-col items-center gap-8">
@@ -29,9 +30,9 @@
                 <img src="demo/images/placeholder-website.svg" alt="Generated website example" class="w-72 h-auto rounded border" />
             </div>
             <form action="upload.php" method="post" enctype="multipart/form-data" class="w-full max-w-md bg-white p-6 rounded shadow">
-                <h2 class="text-xl font-display font-semibold mb-4 text-center">Upload your business card</h2>
+                <h2 class="text-xl font-display font-semibold mb-4 text-center"><?=__('upload_card')?></h2>
                 <input type="file" name="card_image" accept="image/*,application/pdf" required class="w-full border p-2 mb-4" />
-                <button type="submit" class="w-full bg-[#10b981] hover:bg-[#059669] text-white py-2 rounded">Generate Website</button>
+                <button type="submit" class="w-full bg-[#10b981] hover:bg-[#059669] text-white py-2 rounded"><?=__('generate_website')?></button>
             </form>
         </section>
     </main>
