@@ -1,0 +1,64 @@
+{
+  "transformations": [
+    {
+      "id": 1,
+      "businessName": "TechStart Solutions",
+      "industry": "Technology",
+      "beforeImage": "/images/cards/card-1.jpg",
+      "afterImage": "/images/websites/website-1.jpg",
+      "websiteUrl": "https://techstart-demo.card2web.com",
+      "features": ["Contact Form", "Service Pages", "Mobile Responsive", "SEO Optimized"],
+      "completionTime": "45 seconds"
+    },
+    {
+      "id": 2,
+      "businessName": "Green Valley Landscaping",
+      "industry": "Landscaping",
+      "beforeImage": "/images/cards/card-2.jpg",
+      "afterImage": "/images/websites/website-2.jpg",
+      "websiteUrl": "https://greenvalley-demo.card2web.com",
+      "features": ["Gallery", "Quote Request", "Service Areas", "Testimonials"],
+      "completionTime": "38 seconds"
+    },
+    {
+      "id": 3,
+      "businessName": "Bella's Boutique",
+      "industry": "Fashion Retail",
+      "beforeImage": "/images/cards/card-3.jpg",
+      "afterImage": "/images/websites/website-3.jpg",
+      "websiteUrl": "https://bellas-demo.card2web.com",
+      "features": ["Online Catalog", "Appointment Booking", "Social Integration", "Store Locator"],
+      "completionTime": "52 seconds"
+    },
+    {
+      "id": 4,
+      "businessName": "Peak Performance Gym",
+      "industry": "Fitness",
+      "beforeImage": "/images/cards/card-4.jpg",
+      "afterImage": "/images/websites/website-4.jpg",
+      "websiteUrl": "https://peakgym-demo.card2web.com",
+      "features": ["Class Schedules", "Membership Plans", "Trainer Profiles", "Progress Tracking"],
+      "completionTime": "41 seconds"
+    },
+    {
+      "id": 5,
+      "businessName": "Artisan Coffee Roasters",
+      "industry": "Food & Beverage",
+      "beforeImage": "/images/cards/card-5.jpg",
+      "afterImage": "/images/websites/website-5.jpg",
+      "websiteUrl": "https://artisancoffee-demo.card2web.com",
+      "features": ["Online Ordering", "Coffee Guide", "Location Finder", "Loyalty Program"],
+      "completionTime": "48 seconds"
+    },
+    {
+      "id": 6,
+      "businessName": "Modern Dental Care",
+      "industry": "Healthcare",
+      "beforeImage": "/images/cards/card-6.jpg",
+      "afterImage": "/images/websites/website-6.jpg",
+      "websiteUrl": "https://moderndentalcare-demo.card2web.com",
+      "features": ["Online Booking", "Service Info", "Patient Portal", "Insurance Guide"],
+      "completionTime": "43 seconds"
+    }
+  ]
+}
