@@ -38,6 +38,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <input type="hidden" name="next" value="<?= htmlspecialchars($next) ?>" />
 <button class="bg-blue-600 text-white px-4 py-2 rounded" type="submit">Login</button>
 </form>
+<p class="mt-2"><a class="text-blue-600" href="forgot_password.php">Forgot your password?</a></p>
 <p class="mt-2">No account? <a class="text-blue-600" href="register.php">Register</a></p>
 </div>
 <?php include 'footer.php'; ?>
