@@ -1,0 +1,64 @@
+{
+  "testimonials": [
+    {
+      "id": 1,
+      "name": "Sarah Johnson",
+      "position": "Founder",
+      "company": "TechStart Solutions",
+      "avatar": "/images/testimonials/sarah.jpg",
+      "content": "Card2Web transformed our business overnight. From a simple business card to a fully functional website in under a minute. Our leads increased by 300% in the first month!",
+      "rating": 5,
+      "industry": "Technology"
+    },
+    {
+      "id": 2,
+      "name": "Michael Chen",
+      "position": "Owner",
+      "company": "Green Valley Landscaping",
+      "avatar": "/images/testimonials/michael.jpg",
+      "content": "I was skeptical about AI creating websites, but the result exceeded my expectations. Professional design, mobile-friendly, and it perfectly captured our brand essence.",
+      "rating": 5,
+      "industry": "Landscaping"
+    },
+    {
+      "id": 3,
+      "name": "Isabella Rodriguez",
+      "position": "Creative Director",
+      "company": "Bella's Boutique",
+      "avatar": "/images/testimonials/isabella.jpg",
+      "content": "The attention to detail is remarkable. Card2Web understood our aesthetic and created a website that truly represents our brand. Customer engagement has doubled!",
+      "rating": 5,
+      "industry": "Fashion"
+    },
+    {
+      "id": 4,
+      "name": "David Thompson",
+      "position": "General Manager",
+      "company": "Peak Performance Gym",
+      "avatar": "/images/testimonials/david.jpg",
+      "content": "From business card to booking system in seconds. The AI even included features we hadn't thought of. Our member sign-ups increased significantly.",
+      "rating": 5,
+      "industry": "Fitness"
+    },
+    {
+      "id": 5,
+      "name": "Emma Williams",
+      "position": "Head Roaster",
+      "company": "Artisan Coffee Roasters",
+      "avatar": "/images/testimonials/emma.jpg",
+      "content": "The website perfectly captures our artisanal approach. The ordering system integration was seamless, and the design feels authentic to our brand.",
+      "rating": 5,
+      "industry": "Food & Beverage"
+    },
+    {
+      "id": 6,
+      "name": "Dr. James Park",
+      "position": "Lead Dentist",
+      "company": "Modern Dental Care",
+      "avatar": "/images/testimonials/james.jpg",
+      "content": "Professional, clean design that instills trust. The appointment booking system has streamlined our operations and improved patient satisfaction.",
+      "rating": 5,
+      "industry": "Healthcare"
+    }
+  ]
+}
