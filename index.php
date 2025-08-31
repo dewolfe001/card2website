@@ -16,6 +16,7 @@ require_once 'i18n.php';
     </style>
 </head>
 <body class="bg-gray-50 text-gray-800">
+    <?php include 'header.php'; ?>
     <header class="bg-[#1a365d] text-white py-8 mb-12">
         <h1 class="text-3xl font-display font-bold text-center"><?=__('business_card_to_website')?></h1>
         <p class="mt-2 text-center text-[#bcccdc]"><?=__('tagline')?></p>
