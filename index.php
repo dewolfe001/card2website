@@ -6,7 +6,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BusinessCard2Website</title>
+    <title>BusinessCard to Website</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@600;700&display=swap" rel="stylesheet">
     <style>
@@ -16,7 +16,7 @@
 </head>
 <body class="bg-gray-50 text-gray-800">
     <header class="bg-[#1a365d] text-white py-8 mb-12">
-        <h1 class="text-3xl font-display font-bold text-center">BusinessCard2Website</h1>
+        <h1 class="text-3xl font-display font-bold text-center">Business Card to Website</h1>
         <p class="mt-2 text-center text-[#bcccdc]">Turn your business card into a professional website</p>
     </header>
     <main class="container mx-auto px-4">
