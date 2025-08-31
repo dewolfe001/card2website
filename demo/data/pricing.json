@@ -1,0 +1,96 @@
+{
+  "plans": [
+    {
+      "id": "free",
+      "name": "Free",
+      "price": 0,
+      "period": "forever",
+      "description": "Perfect for testing and personal use",
+      "features": [
+        "1 website transformation",
+        "Basic design templates",
+        "Mobile responsive",
+        "Card2Web subdomain",
+        "Basic analytics",
+        "Email support"
+      ],
+      "limitations": [
+        "Card2Web branding",
+        "Limited customization",
+        "Basic templates only"
+      ],
+      "cta": "Get Started Free",
+      "popular": false
+    },
+    {
+      "id": "pro",
+      "name": "Pro",
+      "price": 29,
+      "period": "month",
+      "description": "Ideal for small businesses and entrepreneurs",
+      "features": [
+        "Unlimited transformations",
+        "Premium design templates",
+        "Custom domain support",
+        "Advanced customization",
+        "Contact forms & lead capture",
+        "SEO optimization",
+        "Social media integration",
+        "Priority support",
+        "Advanced analytics",
+        "No Card2Web branding"
+      ],
+      "cta": "Start Pro Trial",
+      "popular": true,
+      "savings": "Most popular"
+    },
+    {
+      "id": "business",
+      "name": "Business",
+      "price": 79,
+      "period": "month",
+      "description": "For growing businesses and agencies",
+      "features": [
+        "Everything in Pro",
+        "Multi-user access",
+        "White-label solution",
+        "API access",
+        "Custom integrations",
+        "Advanced e-commerce features",
+        "Priority design queue",
+        "Dedicated account manager",
+        "Custom training session",
+        "99.9% uptime SLA"
+      ],
+      "cta": "Contact Sales",
+      "popular": false,
+      "savings": "Best value"
+    }
+  ],
+  "faq": [
+    {
+      "question": "How does the AI transformation work?",
+      "answer": "Our advanced AI analyzes your business card image, extracts key information like business name, contact details, and design elements, then creates a professional website tailored to your industry and brand aesthetic."
+    },
+    {
+      "question": "How long does it take to create a website?",
+      "answer": "Most websites are generated within 30-60 seconds. The AI works in real-time to analyze your card and build a complete, functional website."
+    },
+    {
+      "question": "Can I customize the generated website?",
+      "answer": "Yes! Pro and Business plans include advanced customization options. You can modify colors, layouts, content, add pages, and integrate additional features."
+    },
+    {
+      "question": "What file formats do you accept?",
+      "answer": "We accept JPEG, PNG, and WebP image formats. For best results, ensure your business card image is clear, well-lit, and high resolution."
+    },
+    {
+      "question": "Do I get a custom domain?",
+      "answer": "Pro and Business plans include custom domain support. Free plans use a Card2Web subdomain (yourname.card2web.com)."
+    },
+    {
+      "question": "Is there a money-back guarantee?",
+      "answer": "Yes! We offer a 30-day money-back guarantee on all paid plans. If you're not satisfied, we'll refund your payment in full."
+    }
+  ]
+}
