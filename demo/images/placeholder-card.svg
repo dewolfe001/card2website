@@ -1,0 +1,11 @@
+<svg width="400" height="240" viewBox="0 0 400 240" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="400" height="240" rx="12" fill="#1a365d"/>
+  <rect x="20" y="20" width="360" height="200" rx="8" fill="#1a365d" stroke="#334e68" stroke-width="1"/>
+  <text x="40" y="60" font-family="Inter, sans-serif" font-size="24" font-weight="700" fill="white">Business Name</text>
+  <text x="40" y="90" font-family="Inter, sans-serif" font-size="14" fill="#bcccdc">Industry • Services</text>
+  <text x="40" y="140" font-family="Inter, sans-serif" font-size="12" fill="#9fb3c8">Contact Information</text>
+  <text x="40" y="160" font-family="Inter, sans-serif" font-size="12" fill="#9fb3c8">Phone • Email • Website</text>
+  <text x="40" y="180" font-family="Inter, sans-serif" font-size="12" fill="#9fb3c8">Address</text>
+  <circle cx="320" cy="80" r="30" fill="#10b981" opacity="0.2"/>
+  <text x="320" y="85" font-family="Inter, sans-serif" font-size="12" fill="#10b981" text-anchor="middle">LOGO</text>
+</svg>
