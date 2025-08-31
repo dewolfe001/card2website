@@ -53,6 +53,6 @@ The generation flow appears slow in the UI. Instead of redirecting users to page
 - When the user has logged in, take them to a dashboard page. This is a new page in the project.  
 - The dashboard shows the website(s) they own, the registration date, the status of the domain.   
 - Each website entry in the dashboard can launch three new options:  
-  - Edit website – take them to their page on BusinessCard2Website and allow them to edit the page, add images, and change images. When they commit the changes, the changes will be uploaded to their website via the WHM API.  
+  - Edit website – take them to their page on Business Card to Website and allow them to edit the page, add images, and change images. When they commit the changes, the changes will be uploaded to their website via the WHM API.
   - Visit website – take them to their current hosting web page in a new window.   
   - Cancel website – take them to a flow to cancel their website. They will need to confirm that they want to proceed. When they confirm, it will use the WHM API to delete the CPanel account. It will go to Stripe and discontinue the subscription associated with that website. 

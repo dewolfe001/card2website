@@ -1,4 +1,4 @@
-# BusinessCard2Website
+# Business Card to Website
 
 This repository contains a simple PHP prototype based on the PRD. The app lets users upload a business card image and stores the file in `uploads/` with a database record. A preview page shows the uploaded card and displays text extracted via OCR. A basic HTML generator can turn that text into a one-page website which users can view and download. The generator now also infers a NAICS classification via OpenAI to help shape the design.
 

@@ -1,4 +1,4 @@
-**Project Title:** BusinessCard2Website.com
+**Project Title:** Business Card to Website
 
 **Purpose:** Enable users to upload a photo of their business card and receive a simple, AI-generated one-page website based on the card content. The backend is built with PHP and MySQL.
 
@@ -112,7 +112,7 @@
 
 ---
 
-**Project Title:** BusinessCard2Website.com (Modular Architecture)
+**Project Title:** Business Card to Website (Modular Architecture)
 
 **Purpose:**  
  Enable users to upload a photo of their business card and receive a simple, AI-generated one-page website based on the card content. This system is decomposed into modular PHP applications for OCR, NAICS inference, domain availability, billing, and publishing.
