@@ -1,5 +1,9 @@
 <?php
 require 'config.php';
+require_once 'i18n.php';
+
+$supportedLanguages = getSupportedLanguages();
+$currentOutputLang = getOutputLanguage();
 
 $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 $stmt = $pdo->prepare('SELECT filename FROM uploads WHERE id = ?');
@@ -455,6 +459,13 @@ foreach ($previewFiles as $file) {
             
             <label class="block mt-4 mb-2 font-semibold">Describe your business</label>
             <textarea name="additional_details" rows="4" class="w-full border p-2 text-sm"></textarea>
+
+            <label class="block mt-4 mb-2 font-semibold">Website output language</label>
+            <select name="output_lang" class="border rounded p-2 text-sm">
+                <?php foreach ($supportedLanguages as $code => $name): ?>
+                <option value="<?php echo htmlspecialchars($code); ?>" <?php echo $code === $currentOutputLang ? 'selected' : ''; ?>><?php echo htmlspecialchars($name); ?></option>
+                <?php endforeach; ?>
+            </select>
 
             <?php if (!empty($layoutPreviews)): ?>
             <label class="block mt-4 mb-2 font-semibold">Choose a site layout</label>
