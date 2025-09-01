@@ -432,6 +432,7 @@ foreach ($previewFiles as $file) {
     </style>
 </head>
 <body class="bg-gray-100">
+    <?php include 'header.php'; ?>
     <div class="container mx-auto p-8">
         <h1 class="text-2xl font-bold mb-4 text-center">Preview</h1>
         <div class="text-center mb-6">
@@ -513,6 +514,7 @@ foreach ($previewFiles as $file) {
             <a href="index.php" class="text-blue-600">Upload another card</a>
         </div>
     </div>
+    <?php include 'footer.php'; ?>
 
 <script>
 let selectedFiles = [];

@@ -27,7 +27,8 @@ if ($users) {
 <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-100 p-8">
-<div class="max-w-4xl mx-auto bg-white p-6 rounded shadow">
+<?php include 'header.php'; ?>
+<div class="max-w-4xl mx-auto bg-white p-6 rounded shadow mt-8">
 <h2 class="text-2xl mb-4">Admin Dashboard</h2>
 <p class="mb-4"><a class="text-blue-600" href="account.php">Back to account</a></p>
 <table class="min-w-full bg-white border">
@@ -62,5 +63,6 @@ if ($users) {
 </tbody>
 </table>
 </div>
+<?php include 'footer.php'; ?>
 </body>
 </html>
