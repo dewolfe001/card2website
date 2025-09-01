@@ -731,7 +731,7 @@ USR;
             'role' => 'user',
             'content' => [
                 ['type' => 'text', 'text' => $userContent],
-                ['type' => 'input_image', 'image_url' => $layoutImageUrl]
+                ['type' => 'image_url', 'image_url' => $layoutImageUrl]
             ]
         ];
     } else {
