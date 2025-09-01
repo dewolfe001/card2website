@@ -2,11 +2,11 @@
     <div class="container mx-auto px-4 py-12 grid grid-cols-1 md:grid-cols-4 gap-8">
         <div class="md:col-span-2">
             <div class="flex items-center mb-4">
-                <img src="cardbot.png" alt="Card2Web" class="h-8 mr-2">
-                <span class="text-white font-bold text-xl">Card2Web</span>
+                <img src="cardbot.png" alt="Business Card to Website" class="h-8 mr-2">
+                <span class="text-white font-bold text-xl">Business Card to Website</span>
             </div>
             <p class="mb-4">
-                Transform your business cards into professional websites in seconds with AI-powered technology. Join thousands of businesses who trust Card2Web for their digital presence.
+                Transform your business cards into professional websites in seconds with AI-powered technology. Join thousands of businesses who trust Business Card to Website for their digital presence.
             </p>
             <div class="flex space-x-4 text-sm">
                 <span>🔒 SSL Secured</span>
@@ -34,7 +34,7 @@
         </div>
     </div>
     <div class="border-t border-gray-700 text-center text-sm text-gray-400 py-4">
-        <p>&copy; <?php echo date('Y'); ?> Card2Web. All rights reserved.</p>
+        <p>&copy; <?php echo date('Y'); ?> Business Card to Website. All rights reserved.</p>
         <p class="mt-2">Made with ♥️ for businesses worldwide</p>
     </div>
 </footer>

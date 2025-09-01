@@ -11,7 +11,7 @@ function getSupportedLanguages(): array {
         'de' => 'Deutsch',
         'yue' => '廣東話',
         'zh' => '中文',
-        'tl' => 'Tagalog',
+        'fil' => 'Filipino',
         'ko' => '한국어',
         'hi' => 'हिन्दी',
         'bn' => 'বাংলা',
@@ -25,9 +25,14 @@ function detectBrowserLanguage(): string {
     if (!empty($_SERVER['HTTP_ACCEPT_LANGUAGE'])) {
         $langs = explode(',', $_SERVER['HTTP_ACCEPT_LANGUAGE']);
         foreach ($langs as $lang) {
-            $code = strtolower(substr($lang, 0, 2));
-            if (isset($supported[$code])) {
-                return $code;
+            $lang = strtolower($lang);
+            $code2 = substr($lang, 0, 2);
+            if (isset($supported[$code2])) {
+                return $code2;
+            }
+            $code3 = substr($lang, 0, 3);
+            if (isset($supported[$code3])) {
+                return $code3;
             }
         }
     }

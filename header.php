@@ -7,8 +7,8 @@ $outputLang = getOutputLanguage();
 <header class="bg-white border-b">
     <div class="container mx-auto flex justify-between items-center p-4">
         <div class="flex items-center">
-            <img src="cardbot.png" alt="Card2Web" class="h-8 mr-2">
-            <span class="font-bold text-xl text-gray-900">Card2Web</span>
+            <img src="cardbot.png" alt="Business Card to Website" class="h-8 mr-2">
+            <span class="font-bold text-xl text-gray-900">Business Card to Website</span>
         </div>
         <nav class="flex items-center space-x-6 text-gray-700">
             <a href="#" class="hover:text-blue-600">Gallery</a>
