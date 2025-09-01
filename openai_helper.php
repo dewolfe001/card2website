@@ -731,7 +731,8 @@ USR;
             'role' => 'user',
             'content' => [
                 ['type' => 'text', 'text' => $userContent],
-                ['type' => 'image_url', 'image_url' => $layoutImageUrl]
+                // The API expects image_url to be an object with a url key
+                ['type' => 'image_url', 'image_url' => ['url' => $layoutImageUrl]]
             ]
         ];
     } else {
