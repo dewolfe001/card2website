@@ -12,6 +12,10 @@ require_once 'gemini_helper.php';
 require_once 'auth.php';
 require_once 'i18n.php';
 
+if (isset($_POST['output_lang'])) {
+    setOutputLanguage($_POST['output_lang']);
+}
+
 $baseUrl = (isset($_SERVER['HTTPS']) ? 'https://' : 'http://') . $_SERVER['HTTP_HOST'];
 
 define('BASEURL', $baseUrl);
