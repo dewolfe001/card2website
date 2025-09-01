@@ -117,6 +117,11 @@ $iframeSrc = "/generated_sites/{$id}.html?v=" . time();
           doc.body.setAttribute('contenteditable', 'true');
           doc.body.style.caretColor = '#000';
 
+          // Exclude header and footer from editing
+          doc.querySelectorAll('header, footer').forEach(el => {
+            el.setAttribute('contenteditable', 'false');
+          });
+
           // Prevent navigation while editing (clicking links)
           doc.addEventListener('click', (e) => {
             const a = e.target.closest('a');
@@ -129,6 +134,7 @@ $iframeSrc = "/generated_sites/{$id}.html?v=" . time();
           // Click-to-replace images/backgrounds
           doc.addEventListener('click', (e) => {
             if (!editEnabled) return;
+            if (e.target.closest('header, footer')) return;
             const img = e.target.closest('img');
             const bgEl = img ? null : getBackgroundEl(e.target);
             const target = img || bgEl;
@@ -142,12 +148,14 @@ $iframeSrc = "/generated_sites/{$id}.html?v=" . time();
           // Drag & drop image/background replace
           doc.addEventListener('dragover', (e) => {
             if (!editEnabled) return;
+            if (e.target.closest('header, footer')) return;
             const img = e.target.closest('img');
             const bgEl = img ? null : getBackgroundEl(e.target);
             if (img || bgEl) { e.preventDefault(); }
           });
           doc.addEventListener('drop', (e) => {
             if (!editEnabled) return;
+            if (e.target.closest('header, footer')) return;
             const img = e.target.closest('img');
             const bgEl = img ? null : getBackgroundEl(e.target);
             const target = img || bgEl;
@@ -236,6 +244,9 @@ $iframeSrc = "/generated_sites/{$id}.html?v=" . time();
           // Re-init editable bits after replacing doc
           doc = iframe.contentDocument || iframe.contentWindow.document;
           doc.body.setAttribute('contenteditable', 'true');
+          doc.querySelectorAll('header, footer').forEach(el => {
+            el.setAttribute('contenteditable', 'false');
+          });
           sourceArea.style.display = 'none';
           setStatus('Source applied.');
         }
