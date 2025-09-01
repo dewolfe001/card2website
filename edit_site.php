@@ -42,6 +42,7 @@ $iframeSrc = "/generated_sites/{$id}.html?v=" . time();
 </style>
 </head>
 <body>
+  <?php include 'header.php'; ?>
   <div class="toolbar">
     <!-- Formatting -->
     <button type="button" data-cmd="bold"><b>B</b></button>
@@ -75,6 +76,7 @@ $iframeSrc = "/generated_sites/{$id}.html?v=" . time();
 
   <!-- Hidden inputs for image uploads -->
   <input type="file" id="imagePicker" accept="image/*" style="display:none" />
+  <?php include 'footer.php'; ?>
   <script>
     (function(){
       const iframe = document.getElementById('siteFrame');

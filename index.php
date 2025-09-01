@@ -37,5 +37,6 @@ require_once 'i18n.php';
             </form>
         </section>
     </main>
+    <?php include 'footer.php'; ?>
 </body>
 </html>

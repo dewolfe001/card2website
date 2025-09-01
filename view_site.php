@@ -33,6 +33,7 @@ $html = stripslashes($html);
     </style>
 </head>
 <body class="bg-gray-100">
+    <?php include 'header.php'; ?>
     <div class="container mx-auto p-8">
         <h1 class="text-2xl font-bold mb-4 text-center">Your Generated Site</h1>
         <div class="bg-white p-4 rounded shadow mb-4">
@@ -44,6 +45,7 @@ $html = stripslashes($html);
             <a href="domain_search.php?id=<?= $id ?>" class="ml-4 bg-blue-600 text-white px-4 py-2 rounded">Find Domain</a>
         </div>
     </div>
+    <?php include 'footer.php'; ?>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             const iframe = document.getElementById('siteFrame');
