@@ -437,6 +437,13 @@ foreach ($previewFiles as $file) {
 </head>
 <body class="bg-gray-100">
     <?php include 'header.php'; ?>
+    <div id="loadingOverlay" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center text-white text-xl hidden">
+        <svg class="animate-spin h-12 w-12 mr-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+        </svg>
+        Generating your site...
+    </div>
     <div class="container mx-auto p-8">
         <h1 class="text-2xl font-bold mb-4 text-center">Preview</h1>
         <div class="text-center mb-6">
@@ -673,22 +680,14 @@ function scrollFiles(direction) {
     }
 }
 
-// SIMPLE FORM SUBMISSION - just update file input before submit
-/*
-document.getElementById('dataForm').addEventListener('submit', function(e) {
-    console.log('Form submitting...'); // Debug log
-    
-    // Update the file input with selected files
+// Update file input and show spinner before submitting the form
+const dataForm = document.getElementById('dataForm');
+dataForm.addEventListener('submit', function(e) {
     const dt = new DataTransfer();
     selectedFiles.forEach(file => dt.items.add(file));
     fileInput.files = dt.files;
-    
-    console.log('Files attached:', selectedFiles.length);
-    
-    // Let the form submit normally
-    return true;
+    document.getElementById('loadingOverlay').classList.remove('hidden');
 });
-*/
 </script>
 </body>
 </html>
