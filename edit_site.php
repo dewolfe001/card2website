@@ -76,7 +76,6 @@ $iframeSrc = "/generated_sites/{$id}.html?v=" . time();
 
   <!-- Hidden inputs for image uploads -->
   <input type="file" id="imagePicker" accept="image/*" style="display:none" />
-  <?php include 'footer.php'; ?>
   <script>
     (function(){
       const iframe = document.getElementById('siteFrame');
@@ -117,10 +116,8 @@ $iframeSrc = "/generated_sites/{$id}.html?v=" . time();
           doc.body.setAttribute('contenteditable', 'true');
           doc.body.style.caretColor = '#000';
 
-          // Exclude header and footer from editing
-          doc.querySelectorAll('header, footer').forEach(el => {
-            el.setAttribute('contenteditable', 'false');
-          });
+          // Strip header and footer from the editable content
+          doc.querySelectorAll('header, footer').forEach(el => el.remove());
 
           // Prevent navigation while editing (clicking links)
           doc.addEventListener('click', (e) => {
@@ -244,9 +241,7 @@ $iframeSrc = "/generated_sites/{$id}.html?v=" . time();
           // Re-init editable bits after replacing doc
           doc = iframe.contentDocument || iframe.contentWindow.document;
           doc.body.setAttribute('contenteditable', 'true');
-          doc.querySelectorAll('header, footer').forEach(el => {
-            el.setAttribute('contenteditable', 'false');
-          });
+          doc.querySelectorAll('header, footer').forEach(el => el.remove());
           sourceArea.style.display = 'none';
           setStatus('Source applied.');
         }
@@ -334,5 +329,6 @@ $iframeSrc = "/generated_sites/{$id}.html?v=" . time();
       });
     })();
   </script>
+  <?php include 'footer.php'; ?>
 </body>
 </html>
