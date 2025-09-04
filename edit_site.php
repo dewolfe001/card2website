@@ -8,9 +8,7 @@ if (empty($_SESSION['editor_nonce'])) {
 }
 $nonce = $_SESSION['editor_nonce'];
 
-// The page to edit (use your existing viewer that outputs the HTML you want to edit)
-// If your current page is already https://businesscard2website.com/view_site.php?id=47,
-// just point the iframe there.
+// The page to edit
 $id = isset($_GET['id']) ? (int) $_GET['id'] : -1;
 $iframeSrc = "/generated_sites/{$id}.html?v=" . time();
 
@@ -27,6 +25,7 @@ $iframeSrc = "/generated_sites/{$id}.html?v=" . time();
   .toolbar {
     position: sticky; top: 0; z-index: 1000; background: #fff; border-bottom: 1px solid var(--muted);
     display: flex; flex-wrap: wrap; gap: 8px; padding: 10px 12px; align-items: center;
+    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
   }
   .toolbar button, .toolbar .right > * {
     border: 1px solid var(--muted); background:#fff; padding:8px 10px; border-radius:10px; cursor:pointer;
@@ -37,12 +36,22 @@ $iframeSrc = "/generated_sites/{$id}.html?v=" . time();
   .wrap { height: calc(100vh - 60px); }
   iframe { width: 100%; height: 100%; border: 0; background: #fff; }
   .inline-tip { font-size:12px; color:#64748b; margin-left:6px; }
-  .source-area { display:none; width:100%; height: 40vh; }
+  .source-area { display:none; width:100%; height: 40vh; font-family: 'Courier New', monospace; font-size: 14px; }
   .pill { padding: 6px 10px; border-radius: 999px; background:#eef2ff; color:#3730a3; border:1px solid #c7d2fe;}
+  .editor-header {
+    background: var(--ui);
+    color: white;
+    padding: 8px 12px;
+    font-size: 14px;
+    font-weight: 500;
+  }
 </style>
 </head>
 <body>
-  <?php include 'header.php'; ?>
+  <div class="editor-header">
+    Content Editor - Site ID: <?php echo htmlspecialchars($id); ?>
+  </div>
+  
   <div class="toolbar">
     <!-- Formatting -->
     <button type="button" data-cmd="bold"><b>B</b></button>
@@ -72,7 +81,7 @@ $iframeSrc = "/generated_sites/{$id}.html?v=" . time();
     <iframe id="siteFrame" src="<?php echo htmlspecialchars($iframeSrc, ENT_QUOTES); ?>" referrerpolicy="no-referrer"></iframe>
   </div>
 
-  <textarea id="sourceArea" class="source-area"></textarea>
+  <textarea id="sourceArea" class="source-area" placeholder="Edit HTML source code here..."></textarea>
 
   <!-- Hidden inputs for image uploads -->
   <input type="file" id="imagePicker" accept="image/*" style="display:none" />
@@ -103,6 +112,60 @@ $iframeSrc = "/generated_sites/{$id}.html?v=" . time();
         return null;
       }
 
+      // Enhanced function to remove site headers/footers/navigation
+      function stripNonContentElements() {
+        if (!doc) return;
+        
+        // Remove common header/footer/navigation elements
+        const selectorsToRemove = [
+          'header', 'footer', 'nav',
+          '.header', '.footer', '.navigation', '.nav',
+          '.site-header', '.site-footer', '.main-header', '.main-footer',
+          '.page-header', '.page-footer',
+          '[role="banner"]', '[role="navigation"]', '[role="contentinfo"]',
+          '.navbar', '.menu', '.top-bar'
+        ];
+        
+        selectorsToRemove.forEach(selector => {
+          doc.querySelectorAll(selector).forEach(el => {
+            console.log('Removing element:', selector, el);
+            el.remove();
+          });
+        });
+
+        // Also remove any elements that might be site-wide UI
+        doc.querySelectorAll('*').forEach(el => {
+          const classes = el.className.toLowerCase();
+          const id = el.id.toLowerCase();
+          
+          // Remove elements with common site UI class names or IDs
+          if (classes.includes('header') || classes.includes('footer') || 
+              classes.includes('navigation') || classes.includes('navbar') ||
+              id.includes('header') || id.includes('footer') || 
+              id.includes('nav') || id.includes('menu')) {
+            console.log('Removing UI element:', el.tagName, classes, id);
+            el.remove();
+          }
+        });
+
+        // Focus on main content areas
+        const contentSelectors = ['main', '[role="main"]', '.content', '.main-content', '.page-content', 'article'];
+        let contentFound = false;
+        
+        contentSelectors.forEach(selector => {
+          const contentEl = doc.querySelector(selector);
+          if (contentEl && !contentFound) {
+            // If we found a main content area, hide everything else at the body level
+            Array.from(doc.body.children).forEach(child => {
+              if (child !== contentEl && !child.contains(contentEl)) {
+                child.style.display = 'none';
+              }
+            });
+            contentFound = true;
+          }
+        });
+      }
+
       // Wait for iframe to load, then make editable & wire up events
       iframe.addEventListener('load', () => {
         try {
@@ -112,12 +175,17 @@ $iframeSrc = "/generated_sites/{$id}.html?v=" . time();
           // Accessing doc.title is a quick test that will throw if cross-origin
           void doc.title;
 
+          // Strip unwanted elements first
+          stripNonContentElements();
+
           // Make body editable
           doc.body.setAttribute('contenteditable', 'true');
           doc.body.style.caretColor = '#000';
-
-          // Strip header and footer from the editable content
-          doc.querySelectorAll('header, footer').forEach(el => el.remove());
+          
+          // Add some basic styling to make editing clearer
+          doc.body.style.minHeight = '100vh';
+          doc.body.style.padding = '20px';
+          doc.body.style.outline = 'none';
 
           // Prevent navigation while editing (clicking links)
           doc.addEventListener('click', (e) => {
@@ -131,7 +199,7 @@ $iframeSrc = "/generated_sites/{$id}.html?v=" . time();
           // Click-to-replace images/backgrounds
           doc.addEventListener('click', (e) => {
             if (!editEnabled) return;
-            if (e.target.closest('header, footer')) return;
+            
             const img = e.target.closest('img');
             const bgEl = img ? null : getBackgroundEl(e.target);
             const target = img || bgEl;
@@ -139,25 +207,33 @@ $iframeSrc = "/generated_sites/{$id}.html?v=" . time();
               e.preventDefault();
               lastClicked = { el: target, type: img ? 'img' : 'bg' };
               imagePicker.click();
+              setStatus('Select image to replace...');
             }
           });
 
           // Drag & drop image/background replace
           doc.addEventListener('dragover', (e) => {
             if (!editEnabled) return;
-            if (e.target.closest('header, footer')) return;
             const img = e.target.closest('img');
             const bgEl = img ? null : getBackgroundEl(e.target);
-            if (img || bgEl) { e.preventDefault(); }
+            if (img || bgEl) { 
+              e.preventDefault(); 
+              e.target.style.opacity = '0.7';
+            }
           });
+          
+          doc.addEventListener('dragleave', (e) => {
+            e.target.style.opacity = '';
+          });
+          
           doc.addEventListener('drop', (e) => {
             if (!editEnabled) return;
-            if (e.target.closest('header, footer')) return;
             const img = e.target.closest('img');
             const bgEl = img ? null : getBackgroundEl(e.target);
             const target = img || bgEl;
             if (!target) return;
             e.preventDefault();
+            e.target.style.opacity = '';
             lastClicked = { el: target, type: img ? 'img' : 'bg' };
             const file = e.dataTransfer.files && e.dataTransfer.files[0];
             if (file && file.type.startsWith('image/')) {
@@ -171,9 +247,10 @@ $iframeSrc = "/generated_sites/{$id}.html?v=" . time();
             e.preventDefault();
             const text = (e.clipboardData || window.clipboardData).getData('text/plain');
             doc.execCommand('insertText', false, text);
+            setStatus('Text pasted (styles removed).');
           });
 
-          setStatus('Editor ready.');
+          setStatus('Editor ready - content loaded and cleaned.');
         } catch (err) {
           console.error(err);
           setStatus('Cannot edit: iframe must be same-origin.');
@@ -186,6 +263,7 @@ $iframeSrc = "/generated_sites/{$id}.html?v=" . time();
           if (!doc || !editEnabled) return;
           doc.execCommand(btn.dataset.cmd, false, null);
           iframe.contentWindow.focus();
+          setStatus('Formatting applied.');
         });
       });
 
@@ -197,6 +275,7 @@ $iframeSrc = "/generated_sites/{$id}.html?v=" . time();
           // Toggle block format by wrapping selection
           doc.execCommand('formatBlock', false, tag);
           iframe.contentWindow.focus();
+          setStatus(`Format changed to ${tag}.`);
         });
       });
 
@@ -204,24 +283,39 @@ $iframeSrc = "/generated_sites/{$id}.html?v=" . time();
       document.getElementById('mkLink').addEventListener('click', () => {
         if (!doc || !editEnabled) return;
         const url = prompt('Enter URL (https://...)');
-        if (url) doc.execCommand('createLink', false, url);
+        if (url) {
+          doc.execCommand('createLink', false, url);
+          setStatus('Link created.');
+        }
       });
       document.getElementById('rmLink').addEventListener('click', () => {
         if (!doc || !editEnabled) return;
         doc.execCommand('unlink', false, null);
+        setStatus('Link removed.');
       });
 
       // Undo/redo
-      document.getElementById('undo').addEventListener('click', () => { if (doc) doc.execCommand('undo', false, null); });
-      document.getElementById('redo').addEventListener('click', () => { if (doc) doc.execCommand('redo', false, null); });
+      document.getElementById('undo').addEventListener('click', () => { 
+        if (doc) {
+          doc.execCommand('undo', false, null);
+          setStatus('Undone.');
+        }
+      });
+      document.getElementById('redo').addEventListener('click', () => { 
+        if (doc) {
+          doc.execCommand('redo', false, null); 
+          setStatus('Redone.');
+        }
+      });
 
       // Toggle edit mode
       toggleEditBtn.addEventListener('click', () => {
         editEnabled = !editEnabled;
         if (doc) doc.body.setAttribute('contenteditable', editEnabled ? 'true' : 'false');
         toggleEditBtn.textContent = `Editing: ${editEnabled ? 'ON' : 'OFF'}`;
-        toggleEditBtn.style.background = editEnabled ? '#eefce8' : '#fee2e2';
-        toggleEditBtn.style.color = editEnabled ? '#166534' : '#991b1b';
+        toggleEditBtn.style.background = editEnabled ? '#eef2ff' : '#fee2e2';
+        toggleEditBtn.style.color = editEnabled ? '#3730a3' : '#991b1b';
+        setStatus(`Editing ${editEnabled ? 'enabled' : 'disabled'}.`);
       });
 
       // Toggle source view
@@ -231,6 +325,7 @@ $iframeSrc = "/generated_sites/{$id}.html?v=" . time();
         if (isSource) {
           sourceArea.value = doc.documentElement.outerHTML;
           sourceArea.style.display = 'block';
+          document.querySelector('.wrap').style.height = '30vh';
           setStatus('Source view ON (editing full HTML).');
         } else {
           const newHtml = sourceArea.value;
@@ -239,10 +334,17 @@ $iframeSrc = "/generated_sites/{$id}.html?v=" . time();
           const parsed = parser.parseFromString(newHtml, 'text/html');
           doc.open(); doc.write(parsed.documentElement.outerHTML); doc.close();
           // Re-init editable bits after replacing doc
-          doc = iframe.contentDocument || iframe.contentWindow.document;
-          doc.body.setAttribute('contenteditable', 'true');
-          doc.querySelectorAll('header, footer').forEach(el => el.remove());
+          setTimeout(() => {
+            doc = iframe.contentDocument || iframe.contentWindow.document;
+            stripNonContentElements();
+            doc.body.setAttribute('contenteditable', 'true');
+            doc.body.style.minHeight = '100vh';
+            doc.body.style.padding = '20px';
+            doc.body.style.outline = 'none';
+          }, 100);
+          
           sourceArea.style.display = 'none';
+          document.querySelector('.wrap').style.height = 'calc(100vh - 60px)';
           setStatus('Source applied.');
         }
       });
@@ -293,7 +395,7 @@ $iframeSrc = "/generated_sites/{$id}.html?v=" . time();
             target.el.style.backgroundImage = `url('${newUrl}')`;
           }
 
-          setStatus('Image replaced.');
+          setStatus('Image replaced successfully.');
         } catch (err) {
           console.error(err);
           alert('Upload error: ' + err.message);
@@ -305,8 +407,10 @@ $iframeSrc = "/generated_sites/{$id}.html?v=" . time();
       document.getElementById('saveBtn').addEventListener('click', async () => {
         if (!doc) return;
         setStatus('Saving...');
-        // Prefer full document HTML (so head/meta/styles are preserved)
-        const html = doc.documentElement.outerHTML;
+        
+        // Get only the body content for saving (exclude the full document structure)
+        const bodyContent = doc.body.innerHTML;
+        
         try {
           const resp = await fetch('/save_html.php', {
             method: 'POST',
@@ -315,12 +419,16 @@ $iframeSrc = "/generated_sites/{$id}.html?v=" . time();
             body: JSON.stringify({
               id: <?php echo $id; ?>,
               nonce: '<?php echo $nonce; ?>',
-              html
+              html: bodyContent,
+              full_html: doc.documentElement.outerHTML // Send both for flexibility
             })
           });
           const json = await parseJsonSafely(resp);
           if (!resp.ok || !json.success) throw new Error(json.error || 'Save failed');
-          setStatus('Saved ✓');
+          setStatus('Saved successfully ✓');
+          
+          // Brief success indication
+          setTimeout(() => setStatus('Ready'), 2000);
         } catch (err) {
           console.error(err);
           alert('Save error: ' + err.message);
@@ -329,6 +437,5 @@ $iframeSrc = "/generated_sites/{$id}.html?v=" . time();
       });
     })();
   </script>
-  <?php include 'footer.php'; ?>
 </body>
 </html>
