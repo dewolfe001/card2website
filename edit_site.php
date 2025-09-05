@@ -112,12 +112,12 @@ $iframeSrc = "/generated_sites/{$id}.html?v=" . time();
         return null;
       }
 
-      // Enhanced function to remove site headers/footers/navigation
+      // Enhanced function to hide site headers/footers/navigation during editing
       function stripNonContentElements() {
         if (!doc) return;
-        
-        // Remove common header/footer/navigation elements
-        const selectorsToRemove = [
+
+        // Hide common header/footer/navigation elements but keep them in DOM
+        const selectorsToHide = [
           'header', 'footer', 'nav',
           '.header', '.footer', '.navigation', '.nav',
           '.site-header', '.site-footer', '.main-header', '.main-footer',
@@ -125,39 +125,42 @@ $iframeSrc = "/generated_sites/{$id}.html?v=" . time();
           '[role="banner"]', '[role="navigation"]', '[role="contentinfo"]',
           '.navbar', '.menu', '.top-bar'
         ];
-        
-        selectorsToRemove.forEach(selector => {
+
+        selectorsToHide.forEach(selector => {
           doc.querySelectorAll(selector).forEach(el => {
-            console.log('Removing element:', selector, el);
-            el.remove();
+            console.log('Hiding element:', selector, el);
+            el.setAttribute('data-c2w-preserve', 'true');
+            el.style.display = 'none';
           });
         });
 
-        // Also remove any elements that might be site-wide UI
+        // Also hide any elements that might be site-wide UI
         doc.querySelectorAll('*').forEach(el => {
-          const classes = el.className.toLowerCase();
-          const id = el.id.toLowerCase();
-          
-          // Remove elements with common site UI class names or IDs
-          if (classes.includes('header') || classes.includes('footer') || 
+          const classes = (el.className || '').toLowerCase();
+          const id = (el.id || '').toLowerCase();
+
+          // Hide elements with common site UI class names or IDs
+          if (classes.includes('header') || classes.includes('footer') ||
               classes.includes('navigation') || classes.includes('navbar') ||
-              id.includes('header') || id.includes('footer') || 
+              id.includes('header') || id.includes('footer') ||
               id.includes('nav') || id.includes('menu')) {
-            console.log('Removing UI element:', el.tagName, classes, id);
-            el.remove();
+            console.log('Hiding UI element:', el.tagName, classes, id);
+            el.setAttribute('data-c2w-preserve', 'true');
+            el.style.display = 'none';
           }
         });
 
         // Focus on main content areas
         const contentSelectors = ['main', '[role="main"]', '.content', '.main-content', '.page-content', 'article'];
         let contentFound = false;
-        
+
         contentSelectors.forEach(selector => {
           const contentEl = doc.querySelector(selector);
           if (contentEl && !contentFound) {
             // If we found a main content area, hide everything else at the body level
             Array.from(doc.body.children).forEach(child => {
               if (child !== contentEl && !child.contains(contentEl)) {
+                child.setAttribute('data-c2w-preserve', 'true');
                 child.style.display = 'none';
               }
             });
@@ -408,8 +411,15 @@ $iframeSrc = "/generated_sites/{$id}.html?v=" . time();
         if (!doc) return;
         setStatus('Saving...');
         
+        // Reveal temporarily hidden elements before capturing HTML
+        const preserved = doc.querySelectorAll('[data-c2w-preserve]');
+        preserved.forEach(el => el.style.display = '');
+
         // Get only the body content for saving (exclude the full document structure)
         const bodyContent = doc.body.innerHTML;
+
+        // Re-hide preserved elements for continued editing
+        preserved.forEach(el => el.style.display = 'none');
         
         try {
           const resp = await fetch('/save_html.php', {
