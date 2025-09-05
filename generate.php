@@ -344,16 +344,26 @@ try {
 
 // image information
 foreach ( $img_info as $img_u => $img_t ) {
-    $additional .= $additional_incr++.". - Take this image url ".$img_u.". Can you find a way to work the image into the design, or infer from it suggested supporting images and themes. \n";    
-    $additional .= $additional_incr++.". - One of the supplied images should be factoed into the web design as either an addition or a contextual influence. Here's what we got from the image where we analyzed it - ".$img_t." \n";    
+    $additional .= $additional_incr++.". - Take this image url ".$img_u.". Can you find a way to work the image into the design, or infer from it suggested supporting images and themes. \n";
+    $additional .= $additional_incr++.". - One of the supplied images should be factoed into the web design as either an addition or a contextual influence. Here's what we got from the image where we analyzed it - ".$img_t." \n";
 }
+
+$additional .= $additional_incr++.". - Any imagery generated should highlight the business's products, services, or environment and must not depict people or the business owner. Focus on tools, locations, or symbols that represent the business type. \n";
 
 // Generate website from the business data
 error_log("Prompt - businessData ".print_r($businessData, TRUE)."\n --- \n".print_r($additional, TRUE));
 
-// get the images 
+// get the images
 
-$img_prompt = generateMarketingOpenAI($businessData, $additional, $outputLang);
+$imageBusinessData = json_decode($businessData, true);
+if (is_array($imageBusinessData)) {
+    stripPersonalInfo($imageBusinessData);
+    $businessDataForImages = json_encode($imageBusinessData);
+} else {
+    $businessDataForImages = $businessData;
+}
+
+$img_prompt = generateMarketingOpenAI($businessDataForImages, $additional, $outputLang);
 $context = json_decode(file_get_contents($contextPath), true);
 $context['img_prompt'] = $img_prompt;
 file_put_contents($contextPath, json_encode($context));
@@ -535,6 +545,18 @@ function getMimeType($filePath, $fileName = '') {
     ];
     
     return $mimeTypes[$extension] ?? 'application/octet-stream';
+}
+
+function stripPersonalInfo(array &$data) {
+    foreach ($data as $key => &$value) {
+        if (in_array(strtolower($key), ['name','title','first_name','last_name','owner','person_name'])) {
+            unset($data[$key]);
+            continue;
+        }
+        if (is_array($value)) {
+            stripPersonalInfo($value);
+        }
+    }
 }
 
 
