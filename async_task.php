@@ -34,7 +34,7 @@ switch ($action) {
         $img = generateBusinessCardImage($prompt, $size, $err);
         $file = $asyncDir . "{$id}_{$type}.json";
         file_put_contents($file, json_encode($img));
-        echo json_encode(['status' => 'ok', 'file' => basename($file)]);
+        echo json_encode(['status' => 'ok', 'data' => $img]);
         break;
 
     case 'analyze_image':
@@ -44,7 +44,7 @@ switch ($action) {
         $res = generateFromImages($businessData, $imgUrl, $id);
         $file = $asyncDir . "{$id}_imginfo_{$idx}.json";
         file_put_contents($file, $res);
-        echo json_encode(['status' => 'ok', 'file' => basename($file)]);
+        echo json_encode(['status' => 'ok', 'data' => $res]);
         break;
 
     case 'fetch_reviews':
@@ -60,7 +60,7 @@ switch ($action) {
         }
         $file = $asyncDir . "{$id}_reviews_{$idx}.json";
         file_put_contents($file, json_encode($reviews));
-        echo json_encode(['status' => 'ok', 'file' => basename($file)]);
+        echo json_encode(['status' => 'ok', 'data' => $reviews]);
         break;
 
     default:

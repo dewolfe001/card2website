@@ -1,5 +1,9 @@
 <?php
 
+require_once __DIR__ . '/vendor/autoload.php';
+use GuzzleHttp\Client;
+use GuzzleHttp\Promise\Utils;
+
 // Debug logging
 error_log("GET - ".print_r($_GET, TRUE));
 error_log("POST - ".print_r($_POST, TRUE));
@@ -19,6 +23,8 @@ if (isset($_POST['output_lang'])) {
 $baseUrl = (isset($_SERVER['HTTPS']) ? 'https://' : 'http://') . $_SERVER['HTTP_HOST'];
 
 define('BASEURL', $baseUrl);
+
+$client = new Client(['base_uri' => BASEURL]);
 
 $additional_incr = 1;
 $inputLang = getAppLanguage();
@@ -199,29 +205,28 @@ file_put_contents($contextPath, json_encode([
     'additional' => $additional
 ]));
 
-// dispatch image analysis tasks concurrently
+// dispatch image analysis tasks concurrently using Guzzle
 if (sizeof($uploadedFiles) > 0) {
-    $analysisJobs = [];
+    $promises = [];
     foreach ($uploadedFiles as $idx => $uploadFile) {
         $imageUrl = 'https://businesscard2website.com/uploads/site_images/'.$id.'/'.$uploadFile;
-        $jobFile = $asyncDir . "{$id}_imginfo_{$idx}.json";
-        $analysisJobs[$jobFile] = $imageUrl;
-        $cmd = "curl -s '".BASEURL."/async_task.php?action=analyze_image&id={$id}&img=" . urlencode($imageUrl) . "&idx={$idx}' > /dev/null 2>&1 &";
-        exec($cmd);
+        $promises[$imageUrl] = $client->getAsync('/async_task.php', [
+            'query' => [
+                'action' => 'analyze_image',
+                'id'     => $id,
+                'img'    => $imageUrl,
+                'idx'    => $idx
+            ]
+        ]);
     }
 
-    // poll for completion of analysis tasks
-    $start = time();
-    $timeout = 120; // seconds
-    while (time() - $start < $timeout && count($analysisJobs) > 0) {
-        foreach ($analysisJobs as $file => $url) {
-            if (file_exists($file)) {
-                $img_info[$url] = file_get_contents($file);
-                unset($analysisJobs[$file]);
+    $results = Utils::settle($promises)->wait();
+    foreach ($results as $url => $res) {
+        if ($res['state'] === 'fulfilled') {
+            $body = json_decode((string)$res['value']->getBody(), true);
+            if (isset($body['data'])) {
+                $img_info[$url] = $body['data'];
             }
-        }
-        if (count($analysisJobs) > 0) {
-            usleep(500000); // wait 0.5 sec before next poll
         }
     }
 }
@@ -297,31 +302,24 @@ try {
         }
     }
 
-    // fire off review requests concurrently
-    $reviewJobs = [];
-    foreach ($reviewQueries as $idx => $query) {
-        $file = $asyncDir . "{$id}_reviews_{$idx}.json";
-        $reviewJobs[$file] = $query;
-        $cmd = "curl -s '".BASEURL."/async_task.php?action=fetch_reviews&id={$id}&query=" . urlencode($query) . "&idx={$idx}' > /dev/null 2>&1 &";
-        exec($cmd);
+    // fire off review requests concurrently using Guzzle
+    $reviewPromises = [];
+    foreach ($reviewQueries as $query) {
+        $reviewPromises[] = $client->getAsync('/async_task.php', [
+            'query' => [
+                'action' => 'fetch_reviews',
+                'id'     => $id,
+                'query'  => $query
+            ]
+        ]);
     }
 
-    // poll for results
-    if (count($reviewJobs) > 0) {
-        $start = time();
-        $timeout = 120;
-        while (time() - $start < $timeout && count($reviewJobs) > 0) {
-            foreach ($reviewJobs as $file => $query) {
-                if (file_exists($file)) {
-                    $data = json_decode(file_get_contents($file), true);
-                    if (is_array($data)) {
-                        $reviews = array_merge($reviews, $data);
-                    }
-                    unset($reviewJobs[$file]);
-                }
-            }
-            if (count($reviewJobs) > 0) {
-                usleep(500000);
+    $reviewResults = Utils::settle($reviewPromises)->wait();
+    foreach ($reviewResults as $res) {
+        if ($res['state'] === 'fulfilled') {
+            $body = json_decode((string)$res['value']->getBody(), true);
+            if (isset($body['data']) && is_array($body['data'])) {
+                $reviews = array_merge($reviews, $body['data']);
             }
         }
     }
@@ -368,33 +366,32 @@ $context = json_decode(file_get_contents($contextPath), true);
 $context['img_prompt'] = $img_prompt;
 file_put_contents($contextPath, json_encode($context));
 
-// fire image generation requests concurrently
+// fire image generation requests concurrently using Guzzle
 $imageTasks = [
     'main'   => '1024x1024',
     'side'   => '1024x1536',
     'square' => '1024x1024'
 ];
-$imageJobs = [];
+$imagePromises = [];
 foreach ($imageTasks as $type => $size) {
-    $file = $asyncDir . "{$id}_{$type}.json";
-    $imageJobs[$file] = $type;
-    $cmd = "curl -s '".BASEURL."/async_task.php?action=generate_image&id={$id}&type={$type}&size={$size}' > /dev/null 2>&1 &";
-    exec($cmd);
+    $imagePromises[$type] = $client->getAsync('/async_task.php', [
+        'query' => [
+            'action' => 'generate_image',
+            'id'     => $id,
+            'type'   => $type,
+            'size'   => $size
+        ]
+    ]);
 }
 
-// poll for images
+$results = Utils::settle($imagePromises)->wait();
 $images = [];
-$start = time();
-$timeout = 300;
-while (time() - $start < $timeout && count($imageJobs) > 0) {
-    foreach ($imageJobs as $file => $type) {
-        if (file_exists($file)) {
-            $images[$type] = json_decode(file_get_contents($file), true);
-            unset($imageJobs[$file]);
+foreach ($results as $type => $res) {
+    if ($res['state'] === 'fulfilled') {
+        $body = json_decode((string)$res['value']->getBody(), true);
+        if (isset($body['data'])) {
+            $images[$type] = $body['data'];
         }
-    }
-    if (count($imageJobs) > 0) {
-        usleep(500000);
     }
 }
 
