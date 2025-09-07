@@ -1,36 +1,101 @@
 <?php
 
 /**
- * Perform an OpenAI chat request with basic retry support.
+ * Perform an OpenAI chat request with optional streaming support.
+ * When a callback is supplied the request is made in streaming mode and
+ * the callback will receive partial chunks of text as they arrive.  The
+ * function will still return the full concatenated response so existing
+ * callers continue to work.
  *
- * @param array $postData JSON payload for the API
- * @param string|null $error Receives any error message
+ * @param array         $postData  JSON payload for the API ("stream" key is
+ *                                 automatically added when a callback is used)
+ * @param string|null   $error     Receives any error message
+ * @param callable|null $onUpdate  Optional callback for incremental chunks
+ *
  * @return string|null API response on success, null on failure
  */
-function openaiChatRequest(array $postData, ?string &$error = null): ?string {
+function openaiChatRequest(array $postData, ?string &$error = null, ?callable $onUpdate = null): ?string {
     $apiKey = getenv('OPENAI_API_KEY');
     if (!$apiKey) {
         $error = 'Missing OpenAI API key';
         return null;
     }
-    
+
     error_log("LINE 17 - ". print_r($postData, TRUE));
 
     $limit = getenv('OPENAI_RETRY_LIMIT');
     $limit = is_numeric($limit) ? (int)$limit : 3;
     $limit = $limit > 0 ? $limit : 1;
 
+    $streaming = $onUpdate !== null; // enable streaming when callback supplied
+    if ($streaming) {
+        $postData['stream'] = true;
+    }
+
     for ($attempt = 1; $attempt <= $limit; $attempt++) {
         $ch = curl_init('https://api.openai.com/v1/chat/completions');
         curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, !$streaming); // handled manually when streaming
         curl_setopt($ch, CURLOPT_HTTPHEADER, [
             'Authorization: Bearer ' . $apiKey,
             'Content-Type: application/json'
         ]);
         curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($postData));
 
+        $collected = '';
+        if ($streaming) {
+            $buffer = '';
+            curl_setopt($ch, CURLOPT_WRITEFUNCTION, function($ch, $data) use (&$buffer, &$collected, $onUpdate) {
+                $buffer .= $data;
+                while (($pos = strpos($buffer, "\n")) !== false) {
+                    $line = trim(substr($buffer, 0, $pos));
+                    $buffer = substr($buffer, $pos + 1);
+                    if ($line === '' || $line === 'data: [DONE]') {
+                        continue;
+                    }
+                    if (str_starts_with($line, 'data:')) {
+                        $payload = json_decode(substr($line, 5), true);
+                        $delta = $payload['choices'][0]['delta']['content'] ?? '';
+                        if ($delta !== '') {
+                            $collected .= $delta;
+                            if ($onUpdate) {
+                                $onUpdate($delta);
+                            }
+                        }
+                    }
+                }
+                return strlen($data);
+            });
+        }
+
         $response = curl_exec($ch);
+
+        if ($streaming) {
+            // When streaming, $response will be true/false; construct final payload
+            if ($response === false) {
+                $error = 'cURL error: ' . curl_error($ch);
+                curl_close($ch);
+                continue;
+            }
+            $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+            if ($status === 200) {
+                $final = [
+                    'choices' => [
+                        [
+                            'message' => [
+                                'role' => 'assistant',
+                                'content' => $collected
+                            ]
+                        ]
+                    ]
+                ];
+                error_log('RAW Response -- '.substr($collected,0,1000));
+                return json_encode($final);
+            }
+            $error = "HTTP $status";
+            continue;
+        }
 
         error_log('RAW Response -- '.print_r($response, TRUE));
 
@@ -580,7 +645,7 @@ function classifyNaics(string $text, ?string &$error = null): ?array {
 
 // The Big Kahuna...
 
-function generateWebsiteFromData($businessData, string $additional = '', ?string $layoutImageUrl = null, string $inputLanguage = 'en', string $outputLanguage = 'en', ?string &$error = null) {
+function generateWebsiteFromData($businessData, string $additional = '', ?string $layoutImageUrl = null, string $inputLanguage = 'en', string $outputLanguage = 'en', ?string &$error = null, ?callable $onUpdate = null) {
     // Normalize $businessData to a JSON-ish string if an array/object is passed
     if (is_array($businessData) || is_object($businessData)) {
         $businessData = json_encode($businessData, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
@@ -754,7 +819,8 @@ USR;
         'max_completion_tokens' => 25000
     ];
 
-    $response = openaiChatRequest($postData, $error);
+    // Stream the response so very large completions don't block for long
+    $response = openaiChatRequest($postData, $error, $onUpdate);
     if (!$response) {
         // $error should already be set by openaiChatRequest
         return null;
