@@ -409,7 +409,17 @@ if ($square_image) {
     $additional .= $additional_incr++.". - This supplied images should be added into the web design and put low on the page, beside the contact information at the bottom. It should be added as 'background: cover; height: 100%; background-position: top' CSS styling, to limit how much white space ends up in the HTML display. Here's the JSON encoded information about this image's file_path and its url - ".json_encode($square_image)." \n";
 }
 
-$result = generateWebsiteFromData($businessData, $additional, $layoutImageUrl, $inputLang, $outputLang);
+// Stream progress from the language model into a temporary file so the
+// front end can poll for incremental updates while the long running
+// completion is generated.
+$progressFile = $asyncDir . $id . '_progress.txt';
+@unlink($progressFile);
+$progressCb = function($chunk) use ($progressFile) {
+    file_put_contents($progressFile, $chunk, FILE_APPEND);
+};
+
+$error = null;
+$result = generateWebsiteFromData($businessData, $additional, $layoutImageUrl, $inputLang, $outputLang, $error, $progressCb);
 error_log("Generated - ".print_r($result, TRUE));
 $html = $result['html_code'] ?? null;
 
