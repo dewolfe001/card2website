@@ -1,11 +1,11 @@
 <?php
 
 /**
- * Perform an OpenAI chat request with optional streaming support.
- * When a callback is supplied the request is made in streaming mode and
- * the callback will receive partial chunks of text as they arrive.  The
- * function will still return the full concatenated response so existing
- * callers continue to work.
+ * Perform an OpenAI chat request using server-sent events.  The function
+ * always requests a streaming response from OpenAI to reduce the chance of
+ * network timeouts.  When a callback is supplied it will be invoked for each
+ * incremental chunk of text as it arrives; otherwise the function simply
+ * concatenates the pieces and returns the full message.
  *
  * @param array         $postData  JSON payload for the API ("stream" key is
  *                                 automatically added when a callback is used)
@@ -27,9 +27,23 @@ function openaiChatRequest(array $postData, ?string &$error = null, ?callable $o
     $limit = is_numeric($limit) ? (int)$limit : 3;
     $limit = $limit > 0 ? $limit : 1;
 
-    $streaming = $onUpdate !== null; // enable streaming when callback supplied
-    if ($streaming) {
-        $postData['stream'] = true;
+    // honour optional timeout, defaulting to a generous hour so large
+    // generations do not prematurely abort even if PHP's execution time
+    // limit is increased.
+    $timeout = getenv('OPENAI_TIMEOUT');
+    $timeout = is_numeric($timeout) ? (int)$timeout : 3600;
+    $timeout = $timeout >= 0 ? $timeout : 0; // 0 = unlimited
+
+    // Always use streaming to avoid long periods without any data which
+    // can trigger network/proxy timeouts.  When no callback is supplied we
+    // still collect the full response but simply do not emit incremental
+    // updates.
+    $streaming = true;
+    $postData['stream'] = true;
+    if ($onUpdate === null) {
+        $onUpdate = function ($chunk) {
+            // no-op default
+        };
     }
 
     for ($attempt = 1; $attempt <= $limit; $attempt++) {
@@ -38,9 +52,13 @@ function openaiChatRequest(array $postData, ?string &$error = null, ?callable $o
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, !$streaming); // handled manually when streaming
         curl_setopt($ch, CURLOPT_HTTPHEADER, [
             'Authorization: Bearer ' . $apiKey,
-            'Content-Type: application/json'
+            'Content-Type: application/json',
+            'Accept: text/event-stream'
         ]);
         curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($postData));
+        if ($timeout > 0) {
+            curl_setopt($ch, CURLOPT_TIMEOUT, $timeout);
+        }
 
         $collected = '';
         if ($streaming) {
