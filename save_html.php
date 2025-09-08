@@ -31,6 +31,14 @@ if ($id <= 0 || !$html) {
     fail('Missing id or html');
 }
 
+// Inject script that visualizes background image focal points
+$focalScriptTag = '<script src="/focal_point.js"></script>';
+if (stripos($html, '</body>') !== false) {
+    $html = preg_replace('/<\/body>/i', $focalScriptTag . '</body>', $html, 1);
+} else {
+    $html .= $focalScriptTag;
+}
+
 // Basic sanitation idea: allow full doc but you may want to sanitize/strip scripts if needed.
 // Currently we simply accept the HTML provided by the editor.
 
