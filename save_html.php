@@ -26,17 +26,20 @@ if (empty($input['nonce']) || empty($_SESSION['editor_nonce']) || !hash_equals($
 }
 
 $id   = isset($input['id']) ? (int) $input['id'] : 0; // upload_id
-$html = $input['html'] ?? '';
-if ($id <= 0 || !$html) {
+// Prefer full_html if provided; fall back to body-only html for backward compatibility
+$html = $input['full_html'] ?? $input['html'] ?? '';
+if ($id <= 0 || $html === '') {
     fail('Missing id or html');
 }
 
-// Inject script that visualizes background image focal points
+// Inject script that visualizes background image focal points if not already present
 $focalScriptTag = '<script src="/focal_point.js"></script>';
-if (stripos($html, '</body>') !== false) {
-    $html = preg_replace('/<\/body>/i', $focalScriptTag . '</body>', $html, 1);
-} else {
-    $html .= $focalScriptTag;
+if (stripos($html, 'focal_point.js') === false) {
+    if (stripos($html, '</body>') !== false) {
+        $html = preg_replace('/<\/body>/i', $focalScriptTag . '</body>', $html, 1);
+    } else {
+        $html .= $focalScriptTag;
+    }
 }
 
 // Basic sanitation idea: allow full doc but you may want to sanitize/strip scripts if needed.

@@ -415,8 +415,9 @@ $iframeSrc = "/generated_sites/{$id}.html?v=" . time();
         const preserved = doc.querySelectorAll('[data-c2w-preserve]');
         preserved.forEach(el => el.style.display = '');
 
-        // Get only the body content for saving (exclude the full document structure)
+        // Capture both the body content and the full document HTML
         const bodyContent = doc.body.innerHTML;
+        const fullHtml = doc.documentElement.outerHTML;
 
         // Re-hide preserved elements for continued editing
         preserved.forEach(el => el.style.display = 'none');
@@ -430,7 +431,7 @@ $iframeSrc = "/generated_sites/{$id}.html?v=" . time();
               id: <?php echo $id; ?>,
               nonce: '<?php echo $nonce; ?>',
               html: bodyContent,
-              full_html: doc.documentElement.outerHTML // Send both for flexibility
+              full_html: fullHtml // Send both for flexibility
             })
           });
           const json = await parseJsonSafely(resp);
