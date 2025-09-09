@@ -63,13 +63,18 @@ function openaiChatRequest(array $postData, ?string &$error = null, ?callable $o
         $collected = '';
         if ($streaming) {
             $buffer = '';
-            curl_setopt($ch, CURLOPT_WRITEFUNCTION, function($ch, $data) use (&$buffer, &$collected, $onUpdate) {
+            $done   = false;
+            curl_setopt($ch, CURLOPT_WRITEFUNCTION, function($ch, $data) use (&$buffer, &$collected, $onUpdate, &$done) {
                 $buffer .= $data;
                 while (($pos = strpos($buffer, "\n")) !== false) {
                     $line = trim(substr($buffer, 0, $pos));
                     $buffer = substr($buffer, $pos + 1);
-                    if ($line === '' || $line === 'data: [DONE]') {
+                    if ($line === '') {
                         continue;
+                    }
+                    if ($line === 'data: [DONE]') {
+                        $done = true;
+                        return 0; // stop transfer immediately
                     }
                     if (str_starts_with($line, 'data:')) {
                         $payload = json_decode(substr($line, 5), true);
@@ -87,10 +92,11 @@ function openaiChatRequest(array $postData, ?string &$error = null, ?callable $o
         }
 
         $response = curl_exec($ch);
+        $curlErrNo = curl_errno($ch);
 
         if ($streaming) {
-            // When streaming, $response will be true/false; construct final payload
-            if ($response === false) {
+            // When streaming, $response is true/false; treat write-error as success when done flag is set
+            if ($response === false && !($done && $curlErrNo === CURLE_WRITE_ERROR)) {
                 $error = 'cURL error: ' . curl_error($ch);
                 curl_close($ch);
                 continue;
