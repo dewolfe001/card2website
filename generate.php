@@ -442,7 +442,7 @@ if ($side_image) {
     $additional .= $additional_incr++.". - This supplied images should be added into the web design and put in an appropriate spot in the page on the right hand side with text to the left of the image in a two-column set up that stacks vertically on tablet portrait views and smaller viewports. When building the HTML code, place the image as a background image for the right hand side. Use the 'background: cover; height: 100%; background-position: top' CSS for the display that image but limit how much white space there is on the page. Here's the JSON encoded information about this image's file_path and its url- ".json_encode($side_image)." \n";
 }
 if ($square_image) {
-    $additional .= $additional_incr++.". - This supplied images should be added into the web design and put low on the page, beside the contact information at the bottom. It should be added as 'background: cover; height: 100%; background-position: top' CSS styling, to limit how much white space ends up in the HTML display. Here's the JSON encoded information about this image's file_path and its url - ".json_encode($square_image)." \n";
+    $additional .= $additional_incr++. ". - This supplied image should be added into the web design and put low on the page, beside the contact information at the bottom. Assign it a CSS class 'contact-bg' with the styling 'background-size: 100% auto; background-position: center; height: 100%;' to limit how much white space ends up in the HTML display. Here's the JSON encoded information about this image's file_path and its url - " . json_encode($square_image) . " \n";
 }
 
 // Stream progress from the language model into the same progress file so the
@@ -476,6 +476,15 @@ $html = str_replace('</footer>', $new_footer, $html);
 $html = str_replace('\n', "\n", $html);
 $html = stripslashes($html);
 // $html = str_replace('\\n', "\n", $html);
+
+$contactBgCss = '<style>.contact-bg{background-size:100% auto;background-position:center;height:100%;}</style>';
+if (stripos($html, '.contact-bg') !== false) {
+    if (stripos($html, '</head>') !== false) {
+        $html = preg_replace('/<\/head>/i', $contactBgCss . '</head>', $html, 1);
+    } else {
+        $html = $contactBgCss . $html;
+    }
+}
 
 // Save generated site
 updateProgress('Saving generated site...', $progressFile);
