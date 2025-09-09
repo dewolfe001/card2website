@@ -1,5 +1,10 @@
 <?php
 
+// Enable detailed error reporting for debugging slow or stuck builds
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
 require_once __DIR__ . '/vendor/autoload.php';
 use GuzzleHttp\Client;
 use GuzzleHttp\Promise\Utils;
@@ -32,7 +37,21 @@ $outputLang = getOutputLanguage();
 
 $id = isset($_GET['id']) ? (int)$_GET['id'] : (isset($_POST['id']) ? (int)$_POST['id'] : 0);
 
-if ($_POST['additional_details']) {
+// Prepare progress file for streaming updates back to the web client
+$asyncDir = __DIR__ . '/async_tasks/';
+if (!is_dir($asyncDir)) {
+    mkdir($asyncDir, 0777, true);
+}
+$progressFile = $asyncDir . $id . '_progress.txt';
+@unlink($progressFile);
+
+function updateProgress($message, $file)
+{
+    file_put_contents($file, $message . PHP_EOL, FILE_APPEND);
+}
+updateProgress('Starting generation...', $progressFile);
+
+if (!empty($_POST['additional_details'])) {
     $additional = $additional_incr++. ' '.$_POST['additional_details'] ?? ''.
     "\n";
 }
@@ -41,6 +60,7 @@ $stmt = $pdo->prepare('SELECT filename FROM uploads WHERE id = ?');
 $stmt->execute([$id]);
 $upload = $stmt->fetch();
 if (!$upload) {
+    updateProgress('Upload not found', $progressFile);
     die('Upload not found');
 }
 
@@ -63,6 +83,7 @@ if (!empty($upload['filename'])) {
 
 if ($cardImagePath === null) {
     error_log('Card image not found locally or remotely for upload ID ' . $id);
+    updateProgress('Card image not found', $progressFile);
 }
 
 $stmt = $pdo->prepare('SELECT json_data FROM ocr_data WHERE upload_id = ? ORDER BY id DESC LIMIT 1');
@@ -130,6 +151,7 @@ error_log("Reconstructed business data: " . print_r($businessData, true));
 $jsonString = json_encode($businessData, JSON_PRETTY_PRINT);
 $stmt = $pdo->prepare('INSERT INTO ocr_edits (upload_id, edited_text, created_at) VALUES (?, ?, NOW())');
 $stmt->execute([$id, $jsonString]);
+updateProgress('Business data saved', $progressFile);
 
 $layoutImageUrl = null;
 if (!empty($_POST['layout_choice'])) {
@@ -173,6 +195,7 @@ if (!empty($_FILES['website_images']['name'][0])) {
     
     error_log("Uploaded files: " . print_r($uploadedFiles, true));
 }
+updateProgress('Uploaded images processed', $progressFile);
 
 
 // additional additionals
@@ -187,6 +210,7 @@ $stmt->execute([$id]);
 $row = $stmt->fetch();
 if (!$row || !isset($row['json_data'])) {
     error_log('No OCR data available');
+    updateProgress('No OCR data available', $progressFile);
 }
 else {
     $businessData = $row['json_data'];
@@ -194,18 +218,16 @@ else {
 
 $img_info = [];
 
-// ensure async working directory and context file exist
-$asyncDir = __DIR__ . '/async_tasks/';
-if (!is_dir($asyncDir)) {
-    mkdir($asyncDir, 0777, true);
-}
+// ensure context file exists for downstream async tasks
 $contextPath = $asyncDir . $id . '_context.json';
 file_put_contents($contextPath, json_encode([
     'business_data' => $businessData,
     'additional' => $additional
 ]));
+updateProgress('Context initialized', $progressFile);
 
 // dispatch image analysis tasks concurrently using Guzzle
+updateProgress('Analyzing uploaded images...', $progressFile);
 if (sizeof($uploadedFiles) > 0) {
     $promises = [];
     foreach ($uploadedFiles as $idx => $uploadFile) {
@@ -227,9 +249,14 @@ if (sizeof($uploadedFiles) > 0) {
             if (isset($body['data'])) {
                 $img_info[$url] = $body['data'];
             }
+        } else {
+            error_log('Image analysis failed for ' . $url);
+            updateProgress('Image analysis failed for ' . $url, $progressFile);
         }
     }
 }
+
+updateProgress('Image analysis complete', $progressFile);
 
 $businessArray = json_decode($businessData);
 
@@ -242,6 +269,7 @@ $reviewsFetcher = new GoogleMapsReviewsFetcherCurl($searchapi);
 $reviews = [];
 $searchapi_text = [];
 
+updateProgress('Fetching reviews...', $progressFile);
 try {
     error_log("154 - ".print_r($businessArray, TRUE));
     error_log("155 - ".print_r($businessData, TRUE));
@@ -338,7 +366,10 @@ try {
 
 } catch (Exception $e) {
     error_log("Error: " . $e->getMessage());
+    updateProgress('Review fetch error: ' . $e->getMessage(), $progressFile);
 }
+
+updateProgress('Reviews processed', $progressFile);
 
 // image information
 foreach ( $img_info as $img_u => $img_t ) {
@@ -366,6 +397,7 @@ $context = json_decode(file_get_contents($contextPath), true);
 $context['img_prompt'] = $img_prompt;
 file_put_contents($contextPath, json_encode($context));
 
+updateProgress('Generating images...', $progressFile);
 // fire image generation requests concurrently using Guzzle
 $imageTasks = [
     'main'   => '1024x1024',
@@ -392,8 +424,12 @@ foreach ($results as $type => $res) {
         if (isset($body['data'])) {
             $images[$type] = $body['data'];
         }
+    } else {
+        error_log('Image generation failed for ' . $type);
+        updateProgress('Image generation failed for ' . $type, $progressFile);
     }
 }
+updateProgress('Image generation complete', $progressFile);
 
 $main_image = $images['main'] ?? null;
 $side_image = $images['side'] ?? null;
@@ -409,23 +445,28 @@ if ($square_image) {
     $additional .= $additional_incr++.". - This supplied images should be added into the web design and put low on the page, beside the contact information at the bottom. It should be added as 'background: cover; height: 100%; background-position: top' CSS styling, to limit how much white space ends up in the HTML display. Here's the JSON encoded information about this image's file_path and its url - ".json_encode($square_image)." \n";
 }
 
-// Stream progress from the language model into a temporary file so the
+// Stream progress from the language model into the same progress file so the
 // front end can poll for incremental updates while the long running
 // completion is generated.
-$progressFile = $asyncDir . $id . '_progress.txt';
-@unlink($progressFile);
 $progressCb = function($chunk) use ($progressFile) {
     file_put_contents($progressFile, $chunk, FILE_APPEND);
 };
+updateProgress('Generating website HTML...', $progressFile);
 
 $error = null;
 $result = generateWebsiteFromData($businessData, $additional, $layoutImageUrl, $inputLang, $outputLang, $error, $progressCb);
 error_log("Generated - ".print_r($result, TRUE));
 $html = $result['html_code'] ?? null;
+updateProgress('Website HTML generation complete', $progressFile);
+if ($error) {
+    updateProgress('Website generation error: ' . $error, $progressFile);
+    error_log('Website generation error: ' . $error);
+}
 
 if (!$html) {
     // Fallback HTML if generation fails
     $html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>Generated Site</title><style>body{font-family:sans-serif;padding:2rem;}</style></head><body><h1>Business Information</h1><pre>" . htmlspecialchars($jsonString) . "</pre></body></html>";
+    updateProgress('Using fallback HTML', $progressFile);
 }
 
 // put in our branding
@@ -437,6 +478,7 @@ $html = stripslashes($html);
 // $html = str_replace('\\n', "\n", $html);
 
 // Save generated site
+updateProgress('Saving generated site...', $progressFile);
 $dir = __DIR__ . '/generated_sites/';
 if (!is_dir($dir)) {
     mkdir($dir, 0777, true);
@@ -446,6 +488,8 @@ file_put_contents($file, $html);
 
 $stmt = $pdo->prepare('INSERT INTO generated_sites (upload_id, html_code, public_url, created_at) VALUES (?, ?, ?, NOW())');
 $stmt->execute([$id, $html, $file]);
+updateProgress('Site saved', $progressFile);
+updateProgress('Generation finished', $progressFile);
 
 header('Location: view_site.php?id=' . $id);
 exit;
