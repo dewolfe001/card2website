@@ -11,5 +11,9 @@ return [
     'gallery' => 'Gallery',
     'pricing' => 'Pricing',
     'switch_language' => 'Switch to {language}',
-    'swap_languages' => 'Swap'
+    'swap_languages' => 'Swap',
+    'describe_your_business' => 'Describe your business',
+    'website_output_language' => 'Website output language',
+    'choose_a_site_layout' => 'Choose a site layout',
+    'add_images_to_website' => 'Add images we could add to your website'
 ];

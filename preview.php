@@ -109,13 +109,14 @@ function renderInputs(array $data, string $prefix = '') {
     foreach ($data as $key => $value) {
         $fieldName = $prefix === '' ? $key : $prefix . '[' . $key . ']';
         $label = ucwords(str_replace('_', ' ', $key));
+        $translatedLabel = __($label);
         if (is_array($value)) {
             echo '<fieldset class="border p-2 mb-2">';
-            echo '<legend class="font-semibold">' . htmlspecialchars($label) . '</legend>';
+            echo '<legend class="font-semibold">' . htmlspecialchars($translatedLabel) . '</legend>';
             renderInputs($value, $fieldName);
             echo '</fieldset>';
         } else {
-            echo '<label class="block mt-2">' . htmlspecialchars($label) . '</label>';
+            echo '<label class="block mt-2">' . htmlspecialchars($translatedLabel) . '</label>';
 
             // Check if value is a hex color (# followed by 6 hex characters)
             $isHexColor = preg_match('/^#[0-9A-Fa-f]{6}$/', $value);
@@ -464,10 +465,10 @@ foreach ($previewFiles as $file) {
                 <textarea name="raw_analysis_text" rows="12" class="w-full border p-2 text-sm mb-4"><?php echo htmlspecialchars($analysisJson); ?></textarea>
             <?php endif; ?>
             
-            <label class="block mt-4 mb-2 font-semibold">Describe your business</label>
+            <label class="block mt-4 mb-2 font-semibold"><?=__('describe_your_business')?></label>
             <textarea name="additional_details" rows="4" class="w-full border p-2 text-sm"></textarea>
 
-            <label class="block mt-4 mb-2 font-semibold">Website output language</label>
+            <label class="block mt-4 mb-2 font-semibold"><?=__('website_output_language')?></label>
             <select name="output_lang" class="border rounded p-2 text-sm">
                 <?php foreach ($supportedLanguages as $code => $name): ?>
                 <option value="<?php echo htmlspecialchars($code); ?>" <?php echo $code === $currentOutputLang ? 'selected' : ''; ?>><?php echo htmlspecialchars($name); ?></option>
@@ -475,7 +476,7 @@ foreach ($previewFiles as $file) {
             </select>
 
             <?php if (!empty($layoutPreviews)): ?>
-            <label class="block mt-4 mb-2 font-semibold">Choose a site layout</label>
+            <label class="block mt-4 mb-2 font-semibold"><?=__('choose_a_site_layout')?></label>
             <div class="flex flex-wrap gap-4">
                 <?php foreach ($layoutPreviews as $idx => $layout): ?>
                 <label class="cursor-pointer">
@@ -486,7 +487,7 @@ foreach ($previewFiles as $file) {
             </div>
             <?php endif; ?>
 
-            <label class="block mt-4 mb-2 font-semibold">Add images we could add to your website</label>
+            <label class="block mt-4 mb-2 font-semibold"><?=__('add_images_to_website')?></label>
             <div class="upload-container">
                 <div class="button-group">
                     <button type="button" class="upload-btn" onclick="triggerFileInput()">
