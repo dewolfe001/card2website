@@ -111,3 +111,11 @@ CREATE TABLE IF NOT EXISTS password_resets (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS translations (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    english_phrase VARCHAR(255) NOT NULL,
+    language VARCHAR(5) NOT NULL,
+    translated_phrase TEXT NOT NULL,
+    UNIQUE KEY unique_translation (english_phrase, language)
+);
+
