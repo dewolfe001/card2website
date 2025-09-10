@@ -8,6 +8,8 @@ return [
     'tagline' => 'Turn your business card into a professional website',
     'upload_card' => 'Upload your business card',
     'generate_website' => 'Generate Website',
+    'gallery' => 'Gallery',
+    'pricing' => 'Pricing',
     'switch_language' => 'Switch to {language}',
     'swap_languages' => 'Swap'
 ];
