@@ -16,8 +16,11 @@ require_once 'i18n.php';
         <section class="mb-12">
             <div class="bg-white rounded-lg shadow-sm p-8 border border-gray-200">
                 <p class="text-lg text-gray-700 leading-relaxed">
-                    <?=_('BusinessCard2Website.com offers a turnkey service that converts a photo of a business card into a fully hosted website, domain, and ongoing management for a straightforward monthly[...]')?>
+                    <?=_('BusinessCard2Website.com offers a turnkey service that converts a photo of a business card into a fully hosted website, domain.')?>
                 </p>
+                <p class="text-lg text-gray-700 leading-relaxed">
+                    <?=_('All done for you.')?>
+                </p>                
             </div>
         </section>
 
@@ -28,12 +31,13 @@ require_once 'i18n.php';
             <div class="grid gap-6">
                 <div class="bg-white rounded-lg shadow-sm p-6 border border-gray-200 hover:shadow-md transition-shadow">
                     <h3 class="text-xl font-semibold text-blue-600 mb-3"><?=_('Ultra Simplicity')?></h3>
-                    <p class="text-gray-700"><?=_('Just upload a business card photo—no confusing forms, design software, or technical know-how needed. Traditional site builders still require users to nav[...]')?></p>
+                    <p class="text-gray-700"><?=_('Just upload a business card photo—no confusing forms, design software, or technical know-how needed. We make all of the good decisions for you.')?></p>
                 </div>
 
                 <div class="bg-white rounded-lg shadow-sm p-6 border border-gray-200 hover:shadow-md transition-shadow">
                     <h3 class="text-xl font-semibold text-blue-600 mb-3"><?=_('Fast, Professional Launch')?></h3>
                     <p class="text-gray-700"><?=_('Instantly go from business card to live website with a professional look, suitable for small businesses, freelancers, and trades.')?></p>
+                    <p class="text-gray-700"><?=_("You don't need to worry about your website. That's our job.")?></p>
                 </div>
 
                 <div class="bg-white rounded-lg shadow-sm p-6 border border-gray-200 hover:shadow-md transition-shadow">
