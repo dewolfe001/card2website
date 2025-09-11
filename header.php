@@ -11,9 +11,9 @@ $outputLang = getOutputLanguage();
             <span class="font-bold text-xl text-gray-900"><?=__('business_card_to_website')?></span>
         </div>
         <nav class="flex items-center space-x-6 text-gray-700">
-            <a href="#" class="hover:text-blue-600"><?=__('gallery')?></a>
-            <a href="#" class="hover:text-blue-600"><?=__('pricing')?></a>
-            <a href="contact.php" class="hover:text-blue-600"><?=__('contact')?></a>
+            <a href="/faq.php" class="hover:text-blue-600"><?=__('faq')?></a>
+            <a href="/pricing.php" class="hover:text-blue-600"><?=__('pricing')?></a>
+            <a href="/contact.php" class="hover:text-blue-600"><?=__('contact')?></a>
             <form action="set_language.php" method="post" class="ml-4">
                 <input type="hidden" name="output_lang" value="<?=$outputLang?>">
                 <select name="app_lang" onchange="this.form.submit()" class="border rounded px-2 py-1 text-sm">
