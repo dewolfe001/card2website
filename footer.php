@@ -3,7 +3,7 @@
         <div class="md:col-span-2">
             <div class="flex items-center mb-4">
                 <img src="cardbot.png" alt="Business Card to Website" class="h-8 mr-2">
-                <span class="text-white font-bold text-xl">Business Card to Website</span>
+                <span class="text-white font-bold text-xl"><?=__('business_card_to_website')?></span>
             </div>
             <p class="mb-4">
                 Transform your business cards into professional websites in seconds with AI-powered technology. Join thousands of businesses who trust Business Card to Website for their digital presence.
@@ -18,6 +18,7 @@
             <ul class="space-y-1">
                 <li><a href="terms.php" class="hover:underline">Terms &amp; Conditions</a></li>
                 <li><a href="privacy.php" class="hover:underline">Privacy Policy</a></li>
+                <li><a href="https://web321.co/" target="_new" class="hover:underline">Web321</a></li>
             </ul>
         </div>
         <div>
