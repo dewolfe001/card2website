@@ -1,20 +1,18 @@
+<?php
+require_once 'i18n.php';
+?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="<?=getAppLanguage()?>">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BusinessCard2Website.com - Service Overview</title>
+    <title><?=__('Frequently Asked Questions')?></title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-50 min-h-screen">
-    <div class="max-w-4xl mx-auto py-8 px-6">
-        <!-- Header -->
-        <header class="mb-8">
-            <h1 class="text-4xl font-bold text-gray-900 mb-4">BusinessCard2Website.com</h1>
-            <div class="h-1 w-24 bg-blue-600 rounded"></div>
-        </header>
-
-        <!-- Introduction -->
+<body class="bg-gray-50 text-gray-800">
+    <?php include 'header.php'; ?>
+    <main class="container mx-auto px-4 py-8">
+        <h1 class="text-2xl font-bold mb-4"><?=__('Frequently Asked Questions')?></h1>
+    <!-- Introduction -->
         <section class="mb-12">
             <div class="bg-white rounded-lg shadow-sm p-8 border border-gray-200">
                 <p class="text-lg text-gray-700 leading-relaxed">
@@ -209,8 +207,8 @@
                     </ul>
                 </div>
             </div>
-        </section>
-
-    </div>
+        </section>        
+    </main>
+    <?php include 'footer.php'; ?>
 </body>
 </html>
