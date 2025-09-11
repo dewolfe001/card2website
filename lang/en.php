@@ -15,5 +15,19 @@ return [
     'describe_your_business' => 'Describe your business',
     'website_output_language' => 'Website output language',
     'choose_a_site_layout' => 'Choose a site layout',
-    'add_images_to_website' => 'Add images we could add to your website'
+    'add_images_to_website' => 'Add images we could add to your website',
+    'footer_description' => 'Transform your business cards into professional websites in seconds with AI-powered technology. Join thousands of businesses who trust Business Card to Website for their digital presence.',
+    'ssl_secured' => 'SSL Secured',
+    'gdpr_compliant' => 'GDPR Compliant',
+    'legal' => 'Legal',
+    'terms_and_conditions' => 'Terms & Conditions',
+    'privacy_policy' => 'Privacy Policy',
+    'web321' => 'Web321',
+    'support' => 'Support',
+    'login' => 'Login',
+    'follow_us' => 'Follow Us',
+    'twitter' => 'Twitter',
+    'facebook' => 'Facebook',
+    'all_rights_reserved' => 'All rights reserved.',
+    'made_with_love' => 'Made with ♥️ for businesses worldwide'
 ];
