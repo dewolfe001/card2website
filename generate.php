@@ -153,11 +153,10 @@ $stmt = $pdo->prepare('INSERT INTO ocr_edits (upload_id, edited_text, created_at
 $stmt->execute([$id, $jsonString]);
 updateProgress('Business data saved', $progressFile);
 
-$layoutImageUrl = null;
+$layoutTemplateHtml = null;
 if (!empty($_POST['layout_choice'])) {
-    $previewFile = basename($_POST['layout_choice']);
-    $fullFile = str_replace('_preview', '_fullsize', $previewFile);
-    $layoutImageUrl = BASEURL . '/site_layouts/' . $fullFile;
+    $templateFile = basename($_POST['layout_choice']);
+    $layoutTemplateHtml = @file_get_contents('https://businesscard2website.com/html_templates/' . $templateFile);
 }
 
 $uploadedFiles = [];
@@ -221,8 +220,11 @@ $img_info = [];
 // ensure context file exists for downstream async tasks
 $contextPath = $asyncDir . $id . '_context.json';
 file_put_contents($contextPath, json_encode([
-    'business_data' => $businessData,
-    'additional' => $additional
+    'business_data'   => $businessData,
+    'additional'      => $additional,
+    'layout_template' => $layoutTemplateHtml,
+    'input_lang'      => $inputLang,
+    'output_lang'     => $outputLang
 ]));
 updateProgress('Context initialized', $progressFile);
 
@@ -445,62 +447,14 @@ if ($square_image) {
     $additional .= $additional_incr++. ". - This supplied image should be added into the web design and put low on the page, beside the contact information at the bottom. Assign it a CSS class 'contact-bg' with the styling 'background-size: 100% auto; background-position: center; height: 100%;' to limit how much white space ends up in the HTML display. Here's the JSON encoded information about this image's file_path and its url - " . json_encode($square_image) . " \n";
 }
 
-// Stream progress from the language model into the same progress file so the
-// front end can poll for incremental updates while the long running
-// completion is generated.
-$progressCb = function($chunk) use ($progressFile) {
-    file_put_contents($progressFile, $chunk, FILE_APPEND);
-};
-updateProgress('Generating website HTML...', $progressFile);
+// Update context with final additional data for next step
+$context = json_decode(file_get_contents($contextPath), true);
+$context['additional'] = $additional;
+file_put_contents($contextPath, json_encode($context));
 
-$error = null;
-$result = generateWebsiteFromData($businessData, $additional, $layoutImageUrl, $inputLang, $outputLang, $error, $progressCb);
-error_log("Generated - ".print_r($result, TRUE));
-$html = $result['html_code'] ?? null;
-updateProgress('Website HTML generation complete', $progressFile);
-if ($error) {
-    updateProgress('Website generation error: ' . $error, $progressFile);
-    error_log('Website generation error: ' . $error);
-}
+updateProgress('Context ready for build', $progressFile);
 
-if (!$html) {
-    // Fallback HTML if generation fails
-    $html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>Generated Site</title><style>body{font-family:sans-serif;padding:2rem;}</style></head><body><h1>Business Information</h1><pre>" . htmlspecialchars($jsonString) . "</pre></body></html>";
-    updateProgress('Using fallback HTML', $progressFile);
-}
-
-// put in our branding
-$new_footer = '<span class="credits" style="float: right; text-align: right;"><a href="https://businesscard2website.com/" target="_blank" title="Turn your business card into a website.">Get Your Own Website</a></span></footer>';
-$html = str_replace('</footer>', $new_footer, $html);
-
-$html = str_replace('\n', "\n", $html);
-$html = stripslashes($html);
-// $html = str_replace('\\n', "\n", $html);
-
-$contactBgCss = '<style>.contact-bg{background-size:100% auto;background-position:center;height:100%;}</style>';
-if (stripos($html, '.contact-bg') !== false) {
-    if (stripos($html, '</head>') !== false) {
-        $html = preg_replace('/<\/head>/i', $contactBgCss . '</head>', $html, 1);
-    } else {
-        $html = $contactBgCss . $html;
-    }
-}
-
-// Save generated site
-updateProgress('Saving generated site...', $progressFile);
-$dir = __DIR__ . '/generated_sites/';
-if (!is_dir($dir)) {
-    mkdir($dir, 0777, true);
-}
-$file = $dir . $id . '.html';
-file_put_contents($file, $html);
-
-$stmt = $pdo->prepare('INSERT INTO generated_sites (upload_id, html_code, public_url, created_at) VALUES (?, ?, ?, NOW())');
-$stmt->execute([$id, $html, $file]);
-updateProgress('Site saved', $progressFile);
-updateProgress('Generation finished', $progressFile);
-
-header('Location: view_site.php?id=' . $id);
+header('Location: build_site.php?id=' . $id);
 exit;
 
 
