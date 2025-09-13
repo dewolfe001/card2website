@@ -669,7 +669,7 @@ function classifyNaics(string $text, ?string &$error = null): ?array {
 
 // The Big Kahuna...
 
-function generateWebsiteFromData($businessData, string $additional = '', ?string $layoutImageUrl = null, string $inputLanguage = 'en', string $outputLanguage = 'en', ?string &$error = null, ?callable $onUpdate = null) {
+function generateWebsiteFromData($businessData, string $additional = '', ?string $layoutTemplate = null, string $inputLanguage = 'en', string $outputLanguage = 'en', ?string &$error = null, ?callable $onUpdate = null) {
     // Normalize $businessData to a JSON-ish string if an array/object is passed
     if (is_array($businessData) || is_object($businessData)) {
         $businessData = json_encode($businessData, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
@@ -688,6 +688,11 @@ Do not include explanations. Only follow the schema and produce valid JSON per t
 SYS;
 
     // --- User prompt: mobile-first, large-screen polish, and HEAVY schema ---
+    $templateNote = '';
+    if ($layoutTemplate) {
+        $templateNote = "\n\nInsert all content into this HTML template without changing its structure:\n{$layoutTemplate}\n";
+    }
+
     $userContent = <<<USR
 Using the following business card data (written in {$inputLanguage}), create a professional one-page website that is excellent on small viewports and scales beautifully to large viewports.
 
@@ -695,7 +700,7 @@ BUSINESS DATA:
 {$businessData}
 
 ADDITIONAL USER REQUIREMENTS AND SUPPLEMENTAL PROMPTS:
-{$additional}
+{$additional}{$templateNote}
 
 HARD REQUIREMENTS:
 1) Tailwind CSS for styling (use CDN). Use fluid, mobile-first layout, grid/flex utilities, fluid typography (clamp), and good color contrast.
@@ -813,20 +818,9 @@ USR;
     // --- Build payload for your existing openaiChatRequest() wrapper ---
 
     $messages = [
-        ['role' => 'system', 'content' => $system]
+        ['role' => 'system', 'content' => $system],
+        ['role' => 'user', 'content' => $userContent]
     ];
-    if ($layoutImageUrl) {
-        $messages[] = [
-            'role' => 'user',
-            'content' => [
-                ['type' => 'text', 'text' => $userContent],
-                // The API expects image_url to be an object with a url key
-                ['type' => 'image_url', 'image_url' => ['url' => $layoutImageUrl]]
-            ]
-        ];
-    } else {
-        $messages[] = ['role' => 'user', 'content' => $userContent];
-    }
     
     $postData = [
         'model' => 'gpt-5-mini',

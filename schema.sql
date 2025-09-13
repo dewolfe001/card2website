@@ -119,3 +119,11 @@ CREATE TABLE IF NOT EXISTS translations (
     UNIQUE KEY unique_translation (english_phrase, language)
 );
 
+CREATE TABLE IF NOT EXISTS html_templates (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    template_name VARCHAR(100) NOT NULL,
+    template_file VARCHAR(255) NOT NULL,
+    preview_image VARCHAR(255) DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
